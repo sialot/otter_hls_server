@@ -576,71 +576,33 @@ func (d *TsDemuxer) readTsPMT(payload []byte, pHeader *TsHeader) error {
 // 读取pes有效载荷，得到帧数据
 func (d *TsDemuxer) readPesPayload(payload []byte, pHeader *TsHeader) error {
 
-	// 缓存中已经存在帧数据
-	if d.bufferMap[pHeader.PID] != nil {
+	// ts包中含有新pes包头时
+	if pHeader.payload_unit_start_indicator == 0x1 {
+		if len(d.bufferMap[pHeader.PID]) > 0 {
 
-		// ts包中含有新pes包头时
-		if pHeader.payload_unit_start_indicator == 0x1 {
+			// 解析PES数据
+			d.readPes(d.bufferMap[pHeader.PID], pHeader)
 
-			// 高清节目帧长度超过PES_packet_length 16位显示极限
-			// 此时PES_packet_length=0，每个帧以下一个新帧开始作为结束标志
-			// ts包中含有新pes包头时，集中处理上一帧的缓存数据，并清空缓存
-			if len(d.bufferMap[pHeader.PID]) > 0 {
-				fmt.Printf("newstart curPesLen %d, PID: %d, buffersize: %d \n", d.curPesLen, pHeader.PID, len(d.bufferMap[pHeader.PID]))
-
-				// 解析PES数据
-				d.readPes(d.bufferMap[pHeader.PID], pHeader)
-
-				// 清空旧数据
-				d.bufferMap[pHeader.PID] = d.bufferMap[pHeader.PID][0:0]
-				d.curPesLen = -1
-
-				fmt.Printf("clean:%d \n", len(d.bufferMap[pHeader.PID]))
-			}
+			// 清空旧数据
+			d.bufferMap[pHeader.PID] = d.bufferMap[pHeader.PID][0:0]
+			d.curPesLen = -1
 		}
 
+		d.bufferMap[pHeader.PID] = append(d.bufferMap[pHeader.PID], payload...)
 	} else {
 
-		if pHeader.payload_unit_start_indicator == 0x1 {
+		d.bufferMap[pHeader.PID] = append(d.bufferMap[pHeader.PID], payload...)
 
-			// 创建缓存
-			d.bufferMap[pHeader.PID] = make([]byte, 0)
+		// 判断是否已经满足本帧的长度
+		if d.curPesLen > 0 && d.curPesLen == len(d.bufferMap[pHeader.PID]) {
+
+			// 解析PES数据
+			d.readPes(d.bufferMap[pHeader.PID], pHeader)
+
+			// 清空旧数据
+			d.bufferMap[pHeader.PID] = d.bufferMap[pHeader.PID][0:0]
+			d.curPesLen = -1
 		}
-	}
-
-	// 缓存中追加新数据
-	//fmt.Printf("zhuijia : %d \n", len(payload))
-	d.bufferMap[pHeader.PID] = append(d.bufferMap[pHeader.PID], payload...)
-
-	// 没有总长度时，尝试根据已有信息读取总pes长度
-	if d.curPesLen < 0 && len(d.bufferMap[pHeader.PID]) >= 6 {
-
-		pesBuffer := d.bufferMap[pHeader.PID]
-
-		// PES 包长度
-		PES_packet_length := uint16(pesBuffer[4])<<8 | uint16(pesBuffer[5])
-
-		// 加了pes头六个字节，得到pes包全长,否则为超长pes包，curPesLen为零
-		if PES_packet_length != 0 {
-			d.curPesLen = int(PES_packet_length) + 6
-		} else {
-			d.curPesLen = 0
-		}
-	}
-
-	// 判断是否已经满足本帧的长度
-	if d.curPesLen > 0 && d.curPesLen == len(d.bufferMap[pHeader.PID]) {
-
-		fmt.Printf("autostop curPesLen %d, PID: %d, buffersize: %d \n", d.curPesLen, pHeader.PID, len(d.bufferMap[pHeader.PID]))
-
-		// 解析PES数据
-		d.readPes(d.bufferMap[pHeader.PID], pHeader)
-
-		// 清空旧数据
-		d.bufferMap[pHeader.PID] = d.bufferMap[pHeader.PID][0:0]
-		d.curPesLen = -1
-
-		fmt.Printf("clean:%d \n", len(d.bufferMap[pHeader.PID]))
 	}
 
 	return nil
@@ -655,10 +617,6 @@ func (d *TsDemuxer) readPes(pesBuffer []byte, pHeader *TsHeader) error {
 	if tp.pes_start_code_prefix != 0x001 {
 		err := errors.NewError(ERROR_CODE_TS_PES_READ_FAILED, "pes_start_code_prefix error!")
 		fmt.Printf("%s \n", err.ErrMsg)
-
-		fmt.Printf("%d (%d) >  stream_id: %d, pesStartPrefix: %d  PES_packet_length:%d  realLen:%d \n",
-			pHeader.PID, pHeader.payload_unit_start_indicator, pesBuffer[3], tp.pes_start_code_prefix, tp.PES_packet_length, len(pesBuffer))
-
 		return err
 	}
 	tp.stream_id = pesBuffer[3]
@@ -706,10 +664,8 @@ func (d *TsDemuxer) readPes(pesBuffer []byte, pHeader *TsHeader) error {
 		opt_field_idx += 10
 	}
 
-	//	fmt.Printf("PTS:%d, DTS:%d \n ",tp.PTS,tp.DTS )
-
-	fmt.Printf("%d (%d) >  stream_id: %d, pesStartPrefix: %d  PES_packet_length:%d  realLen:%d \n",
-		pHeader.PID, pHeader.payload_unit_start_indicator, pesBuffer[3], tp.pes_start_code_prefix, tp.PES_packet_length, len(pesBuffer))
+	//PID:513,stream_id:192,PES_packet_length:386,PTS:23508000,DTS:0, RealDataLength:378
+	//fmt.Printf("PTS:%d,stream_id:%d,PES_packet_length:%d,PTS:%d,DTS:%d,RealDataLength:%d \n ", pHeader.PID, tp.stream_id, tp.PES_packet_length, tp.PTS, tp.DTS, len(pesBuffer))
 
 	return nil
 }
