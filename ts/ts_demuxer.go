@@ -131,6 +131,9 @@ type Pes struct {
 	repCntrl               uint8  //5 指示交错图像中每个字段应予显示的次数，或者连续图像应予显示的次数
 	additionalCopyInfo     uint8  //7 此 7 比特字段包含与版权信息有关的专用数据
 	previousPESPacketCRC   uint16 //16 包含产生解码器中 16 寄存器零输出的 CRC 值
+	pkgOffset              uint64 // pes开始位置所处的文件偏移量
+	ptime                  uint64
+	dtime                  uint64
 }
 
 // Demuxer TS解封装器
@@ -142,6 +145,7 @@ type Demuxer struct {
 	curProgramPID int
 	curVideoPID   int
 	curAudioPID   int
+	curOffset     uint64
 }
 
 // Init 初始化解封装器
@@ -151,6 +155,7 @@ func (d *Demuxer) Init() {
 	d.curProgramPID = -1
 	d.curVideoPID = -1
 	d.curAudioPID = -1
+	d.curOffset = 0
 }
 
 // ProcessFile 处理文件
@@ -207,6 +212,8 @@ func (d *Demuxer) DemuxPkg(pKgBuf []byte) error {
 			return payloadReadErr
 		}
 	}
+
+	d.curOffset += uint64(TsPkgSize)
 
 	return nil
 }
@@ -415,7 +422,7 @@ func (d *Demuxer) readPat(payload []byte, pHeader *Header) error {
 
 		fmt.Printf("识别到PAT表，PID：%d \n", pHeader.PID)
 		fmt.Printf("识别到当前Program，PID: %d \n", d.curProgramPID)
-		fmt.Println(d.globalPat)
+		// fmt.Println(d.globalPat)
 	}
 
 	return nil
@@ -576,7 +583,7 @@ func (d *Demuxer) readPmt(payload []byte, pHeader *Header) error {
 		fmt.Printf("识别到PMT表，PID：%d, streamcount:%d \n", pHeader.PID, streamCount)
 		fmt.Printf("识别到当前视频流，PID：%d \n", d.curVideoPID)
 		fmt.Printf("识别到当前音频流，PID：%d \n", d.curAudioPID)
-		fmt.Println(d.globalPmt)
+		// fmt.Println(d.globalPmt)
 	}
 
 	return nil
@@ -673,9 +680,16 @@ func (d *Demuxer) readPes(pesBuffer []byte, pHeader *Header) error {
 		optFieldIDx += 10
 	}
 
-	// PID:513,streamID:192,PESPacketLength:386,PTS:23508000,DTS:0, RealDataLength:378
-	// fmt.Printf("PTS:%d,streamID:%d,PESPacketLength:%d,PTS:%d,DTS:%d,RealDataLength:%d \n ", pHeader.PID, tp.streamID, tp.PESPacketLength, tp.PTS, tp.DTS, len(pesBuffer))
+	tp.pkgOffset = d.curOffset
+	tp.ptime = tp.PTS / 90
+	tp.dtime = tp.DTS / 90
 
+	// PID:513,streamID:192,PESPacketLength:386,PTS:23508000,DTS:0, RealDataLength:378
+	if d.curVideoPID != int(pHeader.PID) {
+		return nil
+	}
+	//fmt.Printf("PTS:%d,streamID:%d,PESPacketLength:%d,PTS:%d,DTS:%d,RealDataLength:%d,pkgOffset:%d \n ", pHeader.PID, tp.streamID, tp.PESPacketLength, tp.PTS, tp.DTS, len(pesBuffer), tp.pkgOffset)
+	fmt.Printf("ptime:%d,dtime:%d,pkgOffset:%d \n", tp.PTS, tp.DTS, tp.pkgOffset)
 	return nil
 }
 
