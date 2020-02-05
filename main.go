@@ -17,7 +17,7 @@ func main() {
 
 	defer file.Close()
 
-	var d ts.TsDemuxer
+	var d ts.Demuxer
 	d.Init()
 	d.ProcessFile(file)
 	fmt.Printf("OK! \n")
