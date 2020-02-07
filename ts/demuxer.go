@@ -3,9 +3,6 @@ package ts
 import (
 	"bytes"
 	"fmt"
-	"io"
-	"log"
-	"os"
 
 	errors "../errors"
 )
@@ -16,20 +13,8 @@ const TsPkgSize int = 188
 // TsReloadNum 预加载包数量
 const TsReloadNum int = 30000
 
-// ErrorCodeTsHeader 错误码
-const ErrorCodeTsHeader int = 0
-
-// ErrorCodePatReadFailed 错误码
-const ErrorCodePatReadFailed = 1
-
-// ErrorCodePmtReadFailed 错误码
-const ErrorCodePmtReadFailed = 2
-
-// ErrorCodePesReadFailed 错误码
-const ErrorCodePesReadFailed = 3
-
-// Header Ts头
-type Header struct {
+// header Ts头
+type header struct {
 	syncByte                   uint8  //8 同步字节：固定为0x47;
 	transportErrorIndicator    uint8  //1 传输错误标志：‘1’表示在相关的传输包中至少有一个不可纠正的错误位。
 	payloadUnitStartIndicator  uint8  //1 负载起始标志：在前4个字节之后会有一个调整字节，其的数值为后面调整字段的长度length。
@@ -41,35 +26,35 @@ type Header struct {
 	adaptaionFieldLength       uint8  //8 适配域长度
 }
 
-// PatProgram PAT 中的 Program
-type PatProgram struct {
+// patProgram pat 中的 Program
+type patProgram struct {
 	programNumber uint16 //16 节目号
 	reserved      uint8  //3 保留字段，固定为111
 	PID           uint16 //16 节目号对应内容的PID值
 }
 
-// Pat 表
-type Pat struct {
-	tableID                uint8  //8 PAT表固定为0x00
+// pat 表
+type pat struct {
+	tableID                uint8  //8 pat表固定为0x00
 	sectionSyntaxIndicator uint8  //1 段语法标志位，固定为1
 	zero                   uint8  //1 固定为0
 	reserved1              uint8  //2 保留字段，固定为11
 	sectionLength          uint16 //12 表示这个字节后面数据的长度,包括 CRC信息
-	transportStreamID      uint16 //16 该传输流的ID
+	transportstreamID      uint16 //16 该传输流的ID
 	reserved2              uint8  //2 保留字段，固定为11
 	versionNumber          uint8  //5 版本号，固定为00000,有变化则版本号加1
-	currentNextIndicator   uint8  //1 PAT是否有效,固定为1，表示这个PAT表可以用，如果为0则要等待下一个PAT表
+	currentNextIndicator   uint8  //1 pat是否有效,固定为1，表示这个pat表可以用，如果为0则要等待下一个pat表
 	sectionNumber          uint8  //8 分段号码,最多256个分段
 	lastSectionNumber      uint8  //8 最后一个分段的号码
 	networkPID             uint16 //16 网络PID
 	CRC                    uint32 //32 CRC校验码
 	programCount           uint8  //8 节目数量
 	pLoopData              []byte //循环数据
-	programs               []PatProgram
+	programs               []patProgram
 }
 
-// Stream 视频流信息结构体
-type Stream struct {
+// stream 视频流信息结构体
+type stream struct {
 	streamType    uint8  //8 流类型  h.264编码对应0x1b;aac编码对应0x0f;mp3编码对应0x03
 	reserved1     uint8  //3 保留字段，固定为111
 	elementaryPID uint16 //13 元素PID,与streamType对应的PID
@@ -77,16 +62,16 @@ type Stream struct {
 	ESInfoLength  uint16 //12  描述信息，指定为0x000表示没有
 }
 
-// Pmt 表
-type Pmt struct {
-	tableID                uint8    //8 PAT表固定为0x00
+// pmt 表
+type pmt struct {
+	tableID                uint8    //8 pat表固定为0x00
 	sectionSyntaxIndicator uint8    //1 段语法标志位，固定为1
 	zero                   uint8    //1 固定为0
 	reserved1              uint8    //2  保留字段，固定为11
 	sectionLength          uint16   //12 表示这个字节后面数据的长度,包括 CRC信息
-	programNumber          uint16   //16 频道号码，表示当前的PMT关联到的频道，取值0x0001
+	programNumber          uint16   //16 频道号码，表示当前的pmt关联到的频道，取值0x0001
 	reserved2              uint8    //2 保留字段，固定为11
-	versionNumber          uint8    //5 版本号，固定为00000，如果PAT有变化则版本号加1
+	versionNumber          uint8    //5 版本号，固定为00000，如果pat有变化则版本号加1
 	currentNextIndicator   uint8    //1 是否有效
 	sectionNumber          uint8    //8 分段号码
 	lastSectionNumber      uint8    //8 最后一个分段的号码
@@ -97,7 +82,7 @@ type Pmt struct {
 	CRC                    uint32   //32 CRC校验码
 	streamCount            uint8    //8 流总数
 	pLoopData              []byte   //循环数据
-	streams                []Stream // 流数据
+	streams                []stream // 流数据
 }
 
 // Pes pes数据结构体
@@ -119,8 +104,8 @@ type Pes struct {
 	PESCRCFlag             uint8  //1 置于‘1’时指示 PES 包中 CRC 字段存在。
 	PESExtensionFlag       uint8  //1 置于‘1’时指示 PES 包头中扩展字段存在。置于‘0’时指示此字段不存在
 	PESHeaderDataLength    uint8  //8 指示在此PES包头中包含的由任选字段和任意填充字节所占据的字节总数。
-	PTS                    uint64 //33 PTS(presentation time stamp 显示时间标签)
-	DTS                    uint64 //33 DTS(decoding time stamp 解码时间标签)标志位
+	PTS                    int64  //33 PTS(presentation time stamp 显示时间标签)
+	DTS                    int64  //33 DTS(decoding time stamp 解码时间标签)标志位
 	ESCRBase               uint64 //33 基本流时钟参考
 	ESCRExtension          uint16 //9 基本流时钟参考
 	ESRate                 uint32 //22 ES 速率（基本流速率）
@@ -131,15 +116,16 @@ type Pes struct {
 	repCntrl               uint8  //5 指示交错图像中每个字段应予显示的次数，或者连续图像应予显示的次数
 	additionalCopyInfo     uint8  //7 此 7 比特字段包含与版权信息有关的专用数据
 	previousPESPacketCRC   uint16 //16 包含产生解码器中 16 寄存器零输出的 CRC 值
-	pkgOffset              uint64 // pes开始位置所处的文件偏移量
-	ptime                  uint64
-	dtime                  uint64
+	PkgOffset              uint64 // pes开始位置所处的文件偏移量
+	ptime                  int64
+	dtime                  int64
+	PID                    uint16
 }
 
 // Demuxer TS解封装器
 type Demuxer struct {
-	globalPat     Pat               // 全局PAT表
-	globalPmt     Pmt               // 全局PMT表
+	globalpat     pat               // 全局pat表
+	globalpmt     pmt               // 全局pmt表
 	bufferMap     map[uint16][]byte // 全局ts buffer临时存储，key PID,值 byte数据切片
 	curPesLen     int               // 当前pes结束长度
 	curProgramPID int
@@ -158,75 +144,50 @@ func (d *Demuxer) Init() {
 	d.curOffset = 0
 }
 
-// ProcessFile 处理文件
-func (d *Demuxer) ProcessFile(file *os.File) {
-
-	fmt.Printf("ts_demuxer.processFile start ! \n")
-
-	// 预加载ts包字节 切片
-	preLoadData := make([]byte, TsPkgSize*TsReloadNum)
-
-	// 取ts文件
-	for {
-		_, err := file.Read(preLoadData)
-		//fmt.Printf("LoadData, size：%d \n", len(preLoadData))
-
-		// 读取文件失败
-		if err != nil {
-			if err != io.EOF {
-				log.Println(err)
-			}
-			break
-		}
-
-		// 解封装
-		var i int
-		for i = 0; i < TsReloadNum; i++ {
-			var pKgBuf []byte = preLoadData[i*188 : (i*188 + 188)]
-			d.DemuxPkg(pKgBuf)
-		}
-	}
-
-	fmt.Printf("ts_demuxer.processFile finish ! \n")
-}
-
 // DemuxPkg 解封装
-func (d *Demuxer) DemuxPkg(pKgBuf []byte) error {
+func (d *Demuxer) DemuxPkg(pKgBuf []byte) (*Pes, error) {
+
+	// check包长度
+	if 188 != len(pKgBuf) {
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsPackage length is not 188!")
+		return nil, err
+	}
 
 	// 获取包头
 	header, err := d.readTsHeader(pKgBuf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// 获取适配域
-	adpReadErr := d.readAdaptionField(pKgBuf, &header)
+	adpReadErr := d.readAdaptionField(pKgBuf, header)
 	if adpReadErr != nil {
-		return adpReadErr
+		return nil, adpReadErr
 	}
 
 	// 获取有效载荷, adaptationFieldControl 01,11 代表有有效载荷
 	if header.adaptationFieldControl == 0x01 || header.adaptationFieldControl == 0x03 {
-		payloadReadErr := d.readPayload(pKgBuf, &header)
+		pesResult, payloadReadErr := d.readPayload(pKgBuf, header)
 		if payloadReadErr != nil {
-			return payloadReadErr
+			return nil, payloadReadErr
+		}
+		if pesResult != nil {
+			return pesResult, nil
 		}
 	}
 
-	d.curOffset += uint64(TsPkgSize)
-
-	return nil
+	return nil, nil
 }
 
 // 解析TS包头
-func (d *Demuxer) readTsHeader(pKgBuf []byte) (Header, error) {
-	var header Header
+func (d *Demuxer) readTsHeader(pKgBuf []byte) (*header, error) {
+	var header header
 	header.syncByte = pKgBuf[0]
 
 	// 不是有效的ts包，抛弃
 	if header.syncByte != 0x47 {
-		err := errors.NewError(ErrorCodeTsHeader, "TsHeader read failed!")
-		return header, err
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsHeader read failed!")
+		return nil, err
 	}
 
 	header.transportErrorIndicator = pKgBuf[1] >> 7
@@ -237,11 +198,11 @@ func (d *Demuxer) readTsHeader(pKgBuf []byte) (Header, error) {
 	header.adaptationFieldControl = pKgBuf[3] >> 4 & 0x03
 	header.continuityCounter = pKgBuf[3] & 0x0f
 
-	return header, nil
+	return &header, nil
 }
 
 // 解析适配域
-func (d *Demuxer) readAdaptionField(pKgBuf []byte, pHeader *Header) error {
+func (d *Demuxer) readAdaptionField(pKgBuf []byte, pHeader *header) error {
 
 	if pHeader.adaptationFieldControl == 0x2 || pHeader.adaptationFieldControl == 0x3 {
 		pHeader.adaptaionFieldLength = pKgBuf[4]
@@ -252,7 +213,7 @@ func (d *Demuxer) readAdaptionField(pKgBuf []byte, pHeader *Header) error {
 }
 
 // 解析有效载荷
-func (d *Demuxer) readPayload(pKgBuf []byte, pHeader *Header) error {
+func (d *Demuxer) readPayload(pKgBuf []byte, pHeader *header) (*Pes, error) {
 
 	// 负载信息起始索引
 	var start int = 4
@@ -262,7 +223,7 @@ func (d *Demuxer) readPayload(pKgBuf []byte, pHeader *Header) error {
 		start = start + 1 + int(pHeader.adaptaionFieldLength)
 	}
 
-	// 看是否为PAT信息
+	// 看是否为pat信息
 	if pHeader.PID == 0x0 {
 
 		// 对于PSI,payloadUnitStartIndicator 为1时
@@ -271,7 +232,10 @@ func (d *Demuxer) readPayload(pKgBuf []byte, pHeader *Header) error {
 			start = start + 1
 		}
 
-		d.readPat(pKgBuf[start:len(pKgBuf)], pHeader)
+		err := d.readpat(pKgBuf[start:len(pKgBuf)], pHeader)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 是否为 BAT/SDT 信息
@@ -281,7 +245,7 @@ func (d *Demuxer) readPayload(pKgBuf []byte, pHeader *Header) error {
 		//  ...
 	}
 
-	// 看是否为PMT信息
+	// 看是否为pmt信息
 	if d.curProgramPID == int(pHeader.PID) {
 
 		// 对于PSI,payloadUnitStartIndicator 为1时
@@ -289,27 +253,41 @@ func (d *Demuxer) readPayload(pKgBuf []byte, pHeader *Header) error {
 		if pHeader.payloadUnitStartIndicator == 0x01 {
 			start = start + 1
 		}
-		d.readPmt(pKgBuf[start:len(pKgBuf)], pHeader)
+		err := d.readpmt(pKgBuf[start:len(pKgBuf)], pHeader)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 看是否为PES信息，只解析主视频 和 主音频
 	if int(pHeader.PID) == d.curVideoPID || int(pHeader.PID) == d.curAudioPID {
-		d.readPesPayload(pKgBuf[start:len(pKgBuf)], pHeader)
+
+		// 解析PES数据
+		pesResult, err := d.readPesPayload(pKgBuf[start:len(pKgBuf)], pHeader)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if pesResult != nil {
+			return pesResult, nil
+		}
 	}
 
-	return nil
+	return nil, nil
 }
 
-// 解析PAT表数据
-func (d *Demuxer) readPat(payload []byte, pHeader *Header) error {
+// 解析pat表数据
+func (d *Demuxer) readpat(payload []byte, pHeader *header) error {
 
-	// 获取临时PAT表
+	// 获取临时pat表
 	tableID := payload[0]
 	sectionSyntaxIndicator := payload[1] >> 7 & 0x1
 	zero := payload[1] >> 6 & 0x1
 	reserved1 := payload[1] >> 4 & 0x3
 	sectionLength := uint16(payload[1]&0x0f)<<8 | uint16(payload[2])
-	transportStreamID := uint16(payload[3])<<8 | uint16(payload[4])
+	transportstreamID := uint16(payload[3])<<8 | uint16(payload[4])
 	reserved2 := payload[5] >> 6 & 0x3
 	versionNumber := payload[5] >> 1 & 0x1f
 	currentNextIndicator := payload[5] & 0x1
@@ -320,24 +298,24 @@ func (d *Demuxer) readPat(payload []byte, pHeader *Header) error {
 	var programCount uint8
 
 	// currentNextIndicator 当前包无效
-	// PAT是否有效,固定为1，表示这个PAT表可以用，如果为0则要等待下一个PAT表
+	// pat是否有效,固定为1，表示这个pat表可以用，如果为0则要等待下一个pat表
 	if currentNextIndicator != 0x1 {
 		return nil
 	}
 
 	// 检测三个固定位
 	if tableID != 0x00 {
-		err := errors.NewError(ErrorCodePatReadFailed, "pat parse error!tableID!")
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "pat parse error!tableID!")
 		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
 	if zero != 0x0 {
-		err := errors.NewError(ErrorCodePatReadFailed, "pat parse error!zero!")
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "pat parse error!zero!")
 		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
 	if sectionSyntaxIndicator != 0x1 {
-		err := errors.NewError(ErrorCodePatReadFailed, "不支持 sectionSyntaxIndicator 为 0!")
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "不支持 sectionSyntaxIndicator 为 0!")
 		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
@@ -362,7 +340,7 @@ func (d *Demuxer) readPat(payload []byte, pHeader *Header) error {
 		var loopDataBuffer []byte = d.bufferMap[pHeader.PID]
 
 		// 校验循环数据是否有变化，pat数据没变化，取消解析
-		if d.globalPat.pLoopData != nil && bytes.Equal(d.globalPat.pLoopData, loopDataBuffer) {
+		if d.globalpat.pLoopData != nil && bytes.Equal(d.globalpat.pLoopData, loopDataBuffer) {
 
 			// 清空缓存数据
 			d.bufferMap[pHeader.PID] = d.bufferMap[pHeader.PID][0:0]
@@ -372,7 +350,7 @@ func (d *Demuxer) readPat(payload []byte, pHeader *Header) error {
 		// 校验循环数据长度，如果不为4的整数倍，数据有错误
 		if len(loopDataBuffer)%4 != 0 {
 
-			err := errors.NewError(ErrorCodePatReadFailed, "pat parse error!pat.loopData.length!")
+			err := errors.NewError(errors.ErrorCodeDemuxFailed, "pat parse error!pat.loopData.length!")
 			fmt.Printf("%s \n", err.ErrMsg)
 			return err
 		}
@@ -380,7 +358,7 @@ func (d *Demuxer) readPat(payload []byte, pHeader *Header) error {
 		// 根据缓存计算program数
 		programCount = uint8(len(loopDataBuffer) / 4)
 
-		var programs []PatProgram = make([]PatProgram, programCount)
+		var programs []patProgram = make([]patProgram, programCount)
 
 		var i int
 		for i = 0; i < len(loopDataBuffer); i += 4 {
@@ -391,7 +369,7 @@ func (d *Demuxer) readPat(payload []byte, pHeader *Header) error {
 			if programNumber == 0x00 {
 				networkPID = uint16(loopDataBuffer[i+2]&0x1f)<<8 | uint16(loopDataBuffer[i+3]&0xff)
 			} else {
-				var prg PatProgram
+				var prg patProgram
 				prg.programNumber = programNumber
 				prg.reserved = loopDataBuffer[i+2] >> 5 & 0x3
 				prg.PID = uint16(loopDataBuffer[i+2]&0x1f)<<8 | uint16(loopDataBuffer[i+3]&0xff)
@@ -399,39 +377,39 @@ func (d *Demuxer) readPat(payload []byte, pHeader *Header) error {
 			}
 		}
 
-		// 提交临时PAT表到全局PAT表
-		d.globalPat.tableID = tableID
-		d.globalPat.sectionSyntaxIndicator = sectionSyntaxIndicator
-		d.globalPat.zero = zero
-		d.globalPat.reserved1 = reserved1
-		d.globalPat.sectionLength = sectionLength
-		d.globalPat.transportStreamID = transportStreamID
-		d.globalPat.reserved2 = reserved2
-		d.globalPat.versionNumber = versionNumber
-		d.globalPat.currentNextIndicator = currentNextIndicator
-		d.globalPat.sectionNumber = sectionNumber
-		d.globalPat.lastSectionNumber = lastSectionNumber
-		d.globalPat.networkPID = networkPID
-		d.globalPat.CRC = CRC
-		d.globalPat.programCount = programCount
-		d.globalPat.pLoopData = loopDataBuffer
-		d.globalPat.programs = programs
+		// 提交临时pat表到全局pat表
+		d.globalpat.tableID = tableID
+		d.globalpat.sectionSyntaxIndicator = sectionSyntaxIndicator
+		d.globalpat.zero = zero
+		d.globalpat.reserved1 = reserved1
+		d.globalpat.sectionLength = sectionLength
+		d.globalpat.transportstreamID = transportstreamID
+		d.globalpat.reserved2 = reserved2
+		d.globalpat.versionNumber = versionNumber
+		d.globalpat.currentNextIndicator = currentNextIndicator
+		d.globalpat.sectionNumber = sectionNumber
+		d.globalpat.lastSectionNumber = lastSectionNumber
+		d.globalpat.networkPID = networkPID
+		d.globalpat.CRC = CRC
+		d.globalpat.programCount = programCount
+		d.globalpat.pLoopData = loopDataBuffer
+		d.globalpat.programs = programs
 
 		// 获取第一个节目作为解析目标，只解析第一个节目
-		d.curProgramPID = int(d.globalPat.programs[0].PID)
+		d.curProgramPID = int(d.globalpat.programs[0].PID)
 
-		fmt.Printf("识别到PAT表，PID：%d \n", pHeader.PID)
+		fmt.Printf("识别到pat表，PID：%d \n", pHeader.PID)
 		fmt.Printf("识别到当前Program，PID: %d \n", d.curProgramPID)
-		// fmt.Println(d.globalPat)
+		// fmt.Println(d.globalpat)
 	}
 
 	return nil
 }
 
-// 解析PMT表数据
-func (d *Demuxer) readPmt(payload []byte, pHeader *Header) error {
+// 解析pmt表数据
+func (d *Demuxer) readpmt(payload []byte, pHeader *header) error {
 
-	// 获取临时PMT信息
+	// 获取临时pmt信息
 	tableID := payload[0]
 	sectionSyntaxIndicator := payload[1] >> 7 & 0x1
 	zero := payload[1] >> 6 & 0x1
@@ -451,19 +429,19 @@ func (d *Demuxer) readPmt(payload []byte, pHeader *Header) error {
 	var streamCount uint8
 
 	// currentNextIndicator 当前包无效
-	// PMT是否有效,固定为1，表示这个PAT表可以用，如果为0则要等待下一个PMT表
+	// pmt是否有效,固定为1，表示这个pat表可以用，如果为0则要等待下一个pmt表
 	if currentNextIndicator != 0x1 {
 		return nil
 	}
 
 	// 检测固定位
 	if zero != 0x0 {
-		err := errors.NewError(ErrorCodePmtReadFailed, "pmt parse error!zero!")
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "pmt parse error!zero!")
 		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
 	if sectionSyntaxIndicator != 0x1 {
-		err := errors.NewError(ErrorCodePmtReadFailed, "不支持 sectionSyntaxIndicator 为 0!")
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "不支持 sectionSyntaxIndicator 为 0!")
 		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
@@ -495,7 +473,7 @@ func (d *Demuxer) readPmt(payload []byte, pHeader *Header) error {
 		var loopDataBuffer []byte = d.bufferMap[pHeader.PID]
 
 		// 校验循环数据是否有变化，pat数据没变化，取消解析
-		if d.globalPmt.pLoopData != nil && bytes.Equal(d.globalPmt.pLoopData, loopDataBuffer) {
+		if d.globalpmt.pLoopData != nil && bytes.Equal(d.globalpmt.pLoopData, loopDataBuffer) {
 
 			// 清空缓存数据
 			d.bufferMap[pHeader.PID] = d.bufferMap[pHeader.PID][0:0]
@@ -518,12 +496,12 @@ func (d *Demuxer) readPmt(payload []byte, pHeader *Header) error {
 		// 寄存流总数
 		streamCount = streamcount
 
-		var streams []Stream = make([]Stream, streamCount)
+		var streams []stream = make([]stream, streamCount)
 
 		pos = 0
 		streamcount = 0
 		for pos < len(pLoopData) {
-			var s Stream
+			var s stream
 			s.streamType = pLoopData[pos]
 			s.reserved1 = (pLoopData[pos+1] >> 5) & 0x7
 			s.elementaryPID = uint16(pLoopData[pos+1]&0x1f)<<8 | uint16(pLoopData[pos+2])
@@ -541,70 +519,82 @@ func (d *Demuxer) readPmt(payload []byte, pHeader *Header) error {
 			streamcount++
 		}
 
-		d.globalPmt.tableID = tableID
-		d.globalPmt.sectionSyntaxIndicator = sectionSyntaxIndicator
-		d.globalPmt.zero = zero
-		d.globalPmt.reserved1 = reserved1
-		d.globalPmt.sectionLength = sectionLength
-		d.globalPmt.programNumber = programNumber
-		d.globalPmt.reserved2 = reserved2
-		d.globalPmt.versionNumber = versionNumber
-		d.globalPmt.currentNextIndicator = currentNextIndicator
-		d.globalPmt.sectionNumber = sectionNumber
-		d.globalPmt.lastSectionNumber = lastSectionNumber
-		d.globalPmt.reserved3 = reserved3
-		d.globalPmt.PcrPID = PcrPID
-		d.globalPmt.reserved4 = reserved4
-		d.globalPmt.programInfoLength = programInfoLength
-		d.globalPmt.CRC = CRC
-		d.globalPmt.streamCount = streamCount
-		d.globalPmt.pLoopData = loopDataBuffer
-		d.globalPmt.streams = streams
+		d.globalpmt.tableID = tableID
+		d.globalpmt.sectionSyntaxIndicator = sectionSyntaxIndicator
+		d.globalpmt.zero = zero
+		d.globalpmt.reserved1 = reserved1
+		d.globalpmt.sectionLength = sectionLength
+		d.globalpmt.programNumber = programNumber
+		d.globalpmt.reserved2 = reserved2
+		d.globalpmt.versionNumber = versionNumber
+		d.globalpmt.currentNextIndicator = currentNextIndicator
+		d.globalpmt.sectionNumber = sectionNumber
+		d.globalpmt.lastSectionNumber = lastSectionNumber
+		d.globalpmt.reserved3 = reserved3
+		d.globalpmt.PcrPID = PcrPID
+		d.globalpmt.reserved4 = reserved4
+		d.globalpmt.programInfoLength = programInfoLength
+		d.globalpmt.CRC = CRC
+		d.globalpmt.streamCount = streamCount
+		d.globalpmt.pLoopData = loopDataBuffer
+		d.globalpmt.streams = streams
 
 		var isVideoFound bool = false
 		var isAudioFound bool = false
 		var i int
 
 		// 设置视频、音频
-		for i = 0; i < int(d.globalPmt.streamCount); i++ {
+		for i = 0; i < int(d.globalpmt.streamCount); i++ {
 
 			// h.264编码对应0x1b
 			// aac编码对应0x0f
-			if d.globalPmt.streams[i].streamType == 0x1b && !isVideoFound {
-				d.curVideoPID = int(d.globalPmt.streams[i].elementaryPID)
+			if d.globalpmt.streams[i].streamType == 0x1b && !isVideoFound {
+				d.curVideoPID = int(d.globalpmt.streams[i].elementaryPID)
 				isVideoFound = true
 			}
-			if d.globalPmt.streams[i].streamType == 0x0f && !isAudioFound {
-				d.curAudioPID = int(d.globalPmt.streams[i].elementaryPID)
+			if d.globalpmt.streams[i].streamType == 0x0f && !isAudioFound {
+				d.curAudioPID = int(d.globalpmt.streams[i].elementaryPID)
 				isAudioFound = true
 			}
 		}
 
-		fmt.Printf("识别到PMT表，PID：%d, streamcount:%d \n", pHeader.PID, streamCount)
+		fmt.Printf("识别到pmt表，PID：%d, streamcount:%d \n", pHeader.PID, streamCount)
 		fmt.Printf("识别到当前视频流，PID：%d \n", d.curVideoPID)
 		fmt.Printf("识别到当前音频流，PID：%d \n", d.curAudioPID)
-		// fmt.Println(d.globalPmt)
+		// fmt.Println(d.globalpmt)
 	}
 
 	return nil
 }
 
 // 读取pes有效载荷，得到帧数据
-func (d *Demuxer) readPesPayload(payload []byte, pHeader *Header) error {
+func (d *Demuxer) readPesPayload(payload []byte, pHeader *header) (*Pes, error) {
+
+	var pesResult *Pes
+	var err error
 
 	// ts包中含有新pes包头时
 	if pHeader.payloadUnitStartIndicator == 0x1 {
+
+		// 新包头记录当前包头的偏移量
+		d.curOffset += uint64(TsPkgSize)
+
 		if len(d.bufferMap[pHeader.PID]) > 0 {
 
 			// 解析PES数据
-			d.readPes(d.bufferMap[pHeader.PID], pHeader)
+			pesResult, err = d.readPes(d.bufferMap[pHeader.PID], pHeader)
 
 			// 清空旧数据
 			d.bufferMap[pHeader.PID] = d.bufferMap[pHeader.PID][0:0]
 			d.curPesLen = -1
+
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		d.bufferMap[pHeader.PID] = append(d.bufferMap[pHeader.PID], payload...)
+
 	} else {
 
 		d.bufferMap[pHeader.PID] = append(d.bufferMap[pHeader.PID], payload...)
@@ -613,27 +603,35 @@ func (d *Demuxer) readPesPayload(payload []byte, pHeader *Header) error {
 		if d.curPesLen > 0 && d.curPesLen == len(d.bufferMap[pHeader.PID]) {
 
 			// 解析PES数据
-			d.readPes(d.bufferMap[pHeader.PID], pHeader)
+			pesResult, err = d.readPes(d.bufferMap[pHeader.PID], pHeader)
 
 			// 清空旧数据
 			d.bufferMap[pHeader.PID] = d.bufferMap[pHeader.PID][0:0]
 			d.curPesLen = -1
+
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	return nil
+	if pesResult != nil {
+		return pesResult, nil
+	}
+	return nil, nil
 }
 
 // PES包解析
-func (d *Demuxer) readPes(pesBuffer []byte, pHeader *Header) error {
+func (d *Demuxer) readPes(pesBuffer []byte, pHeader *header) (*Pes, error) {
 
 	var tp Pes
 
 	tp.pesStartCodePrefix = uint32(pesBuffer[0])<<16 | uint32(pesBuffer[1])<<8 | uint32(pesBuffer[2])
+
 	if tp.pesStartCodePrefix != 0x001 {
-		err := errors.NewError(ErrorCodePesReadFailed, "pesStartCodePrefix error!")
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "pesStartCodePrefix error!")
 		fmt.Printf("%s \n", err.ErrMsg)
-		return err
+		return nil, err
 	}
 	tp.streamID = pesBuffer[3]
 	tp.PESPacketLength = uint16(pesBuffer[4])<<8 | uint16(pesBuffer[5])
@@ -658,43 +656,44 @@ func (d *Demuxer) readPes(pesBuffer []byte, pHeader *Header) error {
 	// PTS(presentation time stamp 显示时间标签)
 	// DTS(decoding time stamp 解码时间标签)标志位
 	if tp.PtsDtsFlags == 0x2 {
-		tp.PTS = (uint64(pesBuffer[optFieldIDx])>>1&0x7)<<30 |
-			uint64(pesBuffer[optFieldIDx+1])<<22 |
-			(uint64(pesBuffer[optFieldIDx+2])>>1&0x7f)<<15 |
-			uint64(pesBuffer[optFieldIDx+3])<<7 |
-			(uint64(pesBuffer[optFieldIDx+4]) >> 1 & 0x7f)
+		tp.PTS = (int64(pesBuffer[optFieldIDx])>>1&0x7)<<30 |
+			int64(pesBuffer[optFieldIDx+1])<<22 |
+			(int64(pesBuffer[optFieldIDx+2])>>1&0x7f)<<15 |
+			int64(pesBuffer[optFieldIDx+3])<<7 |
+			(int64(pesBuffer[optFieldIDx+4]) >> 1 & 0x7f)
 		optFieldIDx += 5
 		tp.DTS = tp.PTS
 	} else if tp.PtsDtsFlags == 0x3 {
-		tp.PTS = (uint64(pesBuffer[optFieldIDx])>>1&0x7)<<30 |
-			uint64(pesBuffer[optFieldIDx+1])<<22 |
-			(uint64(pesBuffer[optFieldIDx+2])>>1&0x7f)<<15 |
-			uint64(pesBuffer[optFieldIDx+3])<<7 |
-			(uint64(pesBuffer[optFieldIDx+4]) >> 1 & 0x7f)
+		tp.PTS = (int64(pesBuffer[optFieldIDx])>>1&0x7)<<30 |
+			int64(pesBuffer[optFieldIDx+1])<<22 |
+			(int64(pesBuffer[optFieldIDx+2])>>1&0x7f)<<15 |
+			int64(pesBuffer[optFieldIDx+3])<<7 |
+			(int64(pesBuffer[optFieldIDx+4]) >> 1 & 0x7f)
 
-		tp.DTS = (uint64(pesBuffer[optFieldIDx+5])>>1&0x7)<<30 |
-			uint64(pesBuffer[optFieldIDx+6])<<22 |
-			(uint64(pesBuffer[optFieldIDx+7])>>1&0x7f)<<15 |
-			uint64(pesBuffer[optFieldIDx+8])<<7 |
-			(uint64(pesBuffer[optFieldIDx+9]) >> 1 & 0x7f)
+		tp.DTS = (int64(pesBuffer[optFieldIDx+5])>>1&0x7)<<30 |
+			int64(pesBuffer[optFieldIDx+6])<<22 |
+			(int64(pesBuffer[optFieldIDx+7])>>1&0x7f)<<15 |
+			int64(pesBuffer[optFieldIDx+8])<<7 |
+			(int64(pesBuffer[optFieldIDx+9]) >> 1 & 0x7f)
 		optFieldIDx += 10
 	}
 
-	tp.pkgOffset = d.curOffset
+	tp.PkgOffset = d.curOffset
 	tp.ptime = tp.PTS / 90
 	tp.dtime = tp.DTS / 90
+	tp.PID = pHeader.PID
 
 	// PID:513,streamID:192,PESPacketLength:386,PTS:23508000,DTS:0, RealDataLength:378
 	if d.curVideoPID != int(pHeader.PID) {
-		return nil
+		return nil, nil
 	}
-	//fmt.Printf("PTS:%d,streamID:%d,PESPacketLength:%d,PTS:%d,DTS:%d,RealDataLength:%d,pkgOffset:%d \n ", pHeader.PID, tp.streamID, tp.PESPacketLength, tp.PTS, tp.DTS, len(pesBuffer), tp.pkgOffset)
-	fmt.Printf("ptime:%d,dtime:%d,pkgOffset:%d \n", tp.PTS, tp.DTS, tp.pkgOffset)
-	return nil
+	//fmt.Printf("PTS:%d,streamID:%d,PESPacketLength:%d,PTS:%d,DTS:%d,RealDataLength:%d,pkgOffset:%d \n ", pHeader.PID, tp.streamID, tp.PESPacketLength, tp.PTS, tp.DTS, len(pesBuffer), tp.PkgOffset)
+	//fmt.Printf("ptime:%d,dtime:%d,pkgOffset:%d \n", tp.PTS, tp.DTS, tp.PkgOffset)
+	return &tp, nil
 }
 
 // 追加TS 分段语法缓存
-func (d *Demuxer) storeTsSectionData(sectionNumber uint8, pLoopData []byte, pHeader *Header) {
+func (d *Demuxer) storeTsSectionData(sectionNumber uint8, pLoopData []byte, pHeader *header) {
 
 	// 当前段是第一个分段
 	if sectionNumber == 0x00 {
