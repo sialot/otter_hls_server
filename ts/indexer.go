@@ -4,30 +4,28 @@ import "fmt"
 
 // Indexer TS文件索引创建器
 type Indexer struct {
-	timesMap   map[int]TimeSlice // 时间片列表,key为秒数
-	timesArray []TimeSlice       // 时间片集合列表
-	minTime    int               // 最小显示时间戳
-	maxTime    int               // 最大显示时间戳
+	timesMap map[int]*TimeSlice // 时间片列表,key为秒数
+	minTime  int                // 最小显示时间戳
+	maxTime  int                // 最大显示时间戳
 }
 
 // TimeSlice 以秒为单位的时间片
 type TimeSlice struct {
-	time        int
-	startOffset uint64 // 开始偏移量
-	endOffset   uint64 // 结束偏移量
+	time   int
+	pkgNum int // 开始偏移量
 }
 
 // Init 初始化索引创建器
 func (indexer *Indexer) Init() {
 	indexer.minTime = -1
 	indexer.maxTime = -1
-	indexer.timesMap = make(map[int]TimeSlice)
-	indexer.timesArray = make([]TimeSlice, 0)
+	indexer.timesMap = make(map[int]*TimeSlice)
 }
 
 // FeedFrame 输入帧数据
-func (indexer *Indexer) FeedFrame(pts int64, offset uint64) {
+func (indexer *Indexer) FeedFrame(pts int64, pkgNum int) {
 
+	// 记录早和最晚的时间
 	if indexer.minTime < 0 {
 		indexer.minTime = int(pts / 90)
 	} else if indexer.minTime > int(pts/90) {
@@ -40,16 +38,32 @@ func (indexer *Indexer) FeedFrame(pts int64, offset uint64) {
 		indexer.maxTime = int(pts / 90)
 	}
 
-	var t TimeSlice
-	t.time = int(pts / 90)
-	t.startOffset = offset
-	t.endOffset = 0
+	// 向map中添加时间片
+	timeInMap := indexer.timesMap[int(pts/90)/1000]
 
-	indexer.timesArray = append(indexer.timesArray, t)
+	if timeInMap == nil {
+		var t *TimeSlice = &TimeSlice{}
+		t.time = int(pts / 90)
+		t.pkgNum = pkgNum
+		indexer.timesMap[t.time/1000] = t
+
+	} else {
+
+		// 向前推最早偏移量
+		if timeInMap.pkgNum > pkgNum {
+			timeInMap.pkgNum = pkgNum
+		}
+	}
 }
 
 // CreateIndex Info
 func (indexer *Indexer) CreateIndex() {
-	fmt.Println(indexer.maxTime)
-	fmt.Println(indexer.minTime)
+	var duration int = int(indexer.maxTime-indexer.minTime) / 1000
+	var i int
+	for i = 0; i < duration; i++ {
+		t := indexer.timesMap[int(indexer.minTime/1000)+i]
+
+		fmt.Printf("time:%d, offset:%d \n", i, t.pkgNum*188)
+	}
+
 }

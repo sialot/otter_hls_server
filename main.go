@@ -11,7 +11,7 @@ import (
 
 func main() {
 
-	file, err := os.Open("/Volumes/user/1.ts")
+	file, err := os.Open("/Volumes/user/2.ts")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,14 +52,14 @@ func main() {
 				fmt.Println(err)
 			}
 			if pes != nil {
-				fmt.Printf("PTS:%d,PTS:%d,DTS:%d,PkgOffset:%d \n",
-					pes.PID, pes.PTS, pes.DTS, pes.PkgOffset)
+				//fmt.Printf("PTS:%d,PTS:%d,DTS:%d,PkgOffset:%d \n",	pes.PID, pes.PTS, pes.DTS, pes.PkgOffset)
 
-				indexer.FeedFrame(pes.PTS, pes.PkgOffset)
+				indexer.FeedFrame(pes.PTS, pes.PkgNum)
 
 			}
 
 		}
+
 	}
 
 	indexer.CreateIndex()
