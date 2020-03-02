@@ -1,0 +1,11 @@
+server:
+  port: 4000
+db:
+  ip: 127.0.0.1	
+log:
+  syslog:
+    filename: /var/log/otter_hls_server/sys
+    pattern: -2006-01-02
+  monitorlog:
+    filename: /var/log/otter_hls_server/monitor
+    pattern: -2006-01-02

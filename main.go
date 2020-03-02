@@ -1,70 +1,56 @@
 package main
 
 import (
-	"fmt"
-	"io"
-	"log"
+	"net/http"
 	"os"
-
-	ts "./ts"
+	"os/signal"
+	"time"
+	"github.com/sialot/ezlog"
+	config "./config"
+	logger "./log"
+	routers "./routers"
 )
 
+// Log 系统日志
+var Log *ezlog.Log
+
+// init 构造方法
+func init() {
+	config.InitConfig()
+	logger.InitLog()
+	Log = logger.Log
+}
+
+// 服务入口
 func main() {
 
-	file, err := os.Open("/Volumes/user/1.ts")
-	if err != nil {
-		log.Fatal(err)
+	// 声明路由
+ 	mux := http.NewServeMux()
+	mux.HandleFunc("/", routers.Welcome)
+ 	mux.HandleFunc("/hls/", routers.Hls)
+
+	// 启动服务`
+	port, _ := config.Get("server.port")
+
+	svr := http.Server{
+		Addr:         ":" + port,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+		Handler:      mux,
 	}
 
-	defer file.Close()
+	// 监听退出信号
+	quitChan := make(chan os.Signal)
+	signal.Notify(quitChan, os.Interrupt, os.Kill)
 
-	var d ts.Demuxer
-	d.Init()
+	// 启动协程，等待信号
+	go func() {
+		<-quitChan
+		logger.FlushLog()
+		svr.Close()
+		Log.Info("flush log and close server")
+	}()
 
-	var indexer ts.Indexer
-	indexer.Init()
-
-	fmt.Printf("ts_demuxer.processFile start ! \n")
-
-	// 预加载ts包字节 切片
-	preLoadData := make([]byte, ts.TsPkgSize*ts.TsReloadNum)
-
-	// 取ts文件
-	for {
-		_, err := file.Read(preLoadData)
-		//fmt.Printf("LoadData, size：%d \n", len(preLoadData))
-
-		// 读取文件失败
-		if err != nil {
-			if err != io.EOF {
-				log.Println(err)
-			}
-			break
-		}
-
-		// 解封装
-		var i int
-		for i = 0; i < ts.TsReloadNum; i++ {
-			var pKgBuf []byte = preLoadData[i*188 : (i*188 + 188)]
-			pes, err := d.DemuxPkg(pKgBuf)
-
-			if err != nil {
-				fmt.Println(err)
-			}
-			if pes != nil {
-				fmt.Printf("PTS:%d,PTS:%d,DTS:%d,PkgOffset:%d \n",
-					pes.PID, pes.PTS, pes.DTS, pes.PkgOffset)
-
-				indexer.FeedFrame(pes.PTS, pes.PkgOffset)
-
-			}
-
-		}
-	}
-
-	indexer.CreateIndex()
-
-	fmt.Printf("ts_demuxer.processFile finish ! \n")
-
-	fmt.Printf("OK! \n")
+	Log.Info("server started")
+	svr.ListenAndServe()
 }
