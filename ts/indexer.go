@@ -13,7 +13,6 @@ import (
 // Indexer TS文件索引创建器
 type Indexer struct {
 	indexFilePath string            // 索引文件路径
-	timesMap      map[int]TimeSlice // 时间片列表,key为秒数
 	timesArray    []TimeSlice       // 时间片集合列表
 	minTime       int               // 最小显示时间戳
 	maxTime       int               // 最大显示时间戳
@@ -21,14 +20,14 @@ type Indexer struct {
 
 // TsIndex ts文件索引
 type TsIndex struct {
-	bindWidth  uint64      // 带宽(比特率)
+	bindWidth  int      // 带宽(比特率)
 	duration   int         // 总时长
 	timesArray []TimeSlice // 时间片集合列表
 }
 
 // TimeSlice 以秒为单位的时间片
 type TimeSlice struct {
-	time        int
+	time        float32
 	startOffset uint64 // 开始偏移量
 }
 
@@ -81,14 +80,28 @@ func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 	}
 
 	var t TimeSlice
-	t.time = int(pts / 90)
+	t.time = float32(pts / 90)
 	t.startOffset = offset
 
 	indexer.timesArray = append(indexer.timesArray, t)
 }
 
 // writeIndexFile 将索引文件写入硬盘
+//
+// 索引文件构成 
+//
+// [startmark(32bit)|duration(32bit)|bindWidth(32bit)|[time(32bit)|startOffset(64bit)] * N]
+// 
+// startmark	|开始标记固定 0x00 (32bit)
+// duration		|时长(32bit)
+// bindWidth    |码率(32bit)
+// time			|分片时间（单位秒）
+// startOffset	|分片偏移量
 func writeIndexFile(pTsIndex *TsIndex) error {
+
+
+
+
 
 	// TODO
 	return nil
@@ -107,7 +120,6 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
 	// 初始化成员变量
 	indexer.minTime = -1
 	indexer.maxTime = -1
-	indexer.timesMap = make(map[int]TimeSlice)
 	indexer.timesArray = make([]TimeSlice, 0)
 
 	// 获取ts文件路径
@@ -168,11 +180,27 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
 		}
 	}
 
-	// 创建索引结果对象
+	// 索引对象
 	var tsIndex TsIndex
 	tsIndex.duration = (indexer.maxTime - indexer.minTime) / 1000
-	tsIndex.bindWidth = getFileSize(tsFilePath) / uint64(tsIndex.duration) 
-	tsIndex.timesArray = indexer.timesArray
+	tsIndex.bindWidth = int(getFileSize(tsFilePath) / uint64(tsIndex.duration)) 
+	tsIndex.timesArray = make([]TimeSlice, 0)
+	
+	// 整理切片时间,time单位为秒，改为每秒一个切片
+	var i int
+	var cursecond int = -1
+	var second float32
+	for i = 0; i < len(indexer.timesArray); i++ {
+
+		second = (indexer.timesArray[i].time - float32(indexer.minTime)) / 1000
+
+		if int(second) > cursecond {
+			cursecond = int(second)
+			indexer.timesArray[i].time = second
+			tsIndex.timesArray = append(tsIndex.timesArray, indexer.timesArray[i])
+		}
+	}
+
 	return &tsIndex, nil
 }
 
