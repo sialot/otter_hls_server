@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 
 	errors "../errors"
 )
@@ -21,7 +21,7 @@ type Indexer struct {
 
 // TsIndex ts文件索引
 type TsIndex struct {
-	bindWidth  uint64         // 带宽(比特率)
+	bindWidth  uint64      // 带宽(比特率)
 	duration   int         // 总时长
 	timesArray []TimeSlice // 时间片集合列表
 }
@@ -33,7 +33,7 @@ type TimeSlice struct {
 }
 
 // GetTsIndex 获取ts文件索引
-func GetTsIndex(indexFilePath string) (*TsIndex, error){
+func GetTsIndex(indexFilePath string) (*TsIndex, error) {
 
 	fmt.Println("finding indexFilePath:" + indexFilePath)
 
@@ -101,14 +101,14 @@ func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 }
 
 // writeIndexFile 将索引文件写入硬盘
-func writeIndexFile(pTsIndex *TsIndex) error{
+func writeIndexFile(pTsIndex *TsIndex) error {
 
 	// TODO
 	return nil
 }
 
 // writeIndexFile 将索引文件写入硬盘
-func readIndexFile(tsIndexFilePath string) (*TsIndex, error){
+func readIndexFile(tsIndexFilePath string) (*TsIndex, error) {
 
 	// TODO
 	return nil, nil
@@ -203,10 +203,10 @@ func fileExists(path string) bool {
 
 // getFileSize 获取文件大小
 func getFileSize(filename string) uint64 {
-    var result uint64
-    filepath.Walk(filename, func(path string, f os.FileInfo, err error) error {
-        result = uint64(f.Size())
-        return nil
-    })
-    return result
+	var result uint64
+	filepath.Walk(filename, func(path string, f os.FileInfo, err error) error {
+		result = uint64(f.Size())
+		return nil
+	})
+	return result
 }
