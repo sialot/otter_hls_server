@@ -2,6 +2,7 @@ package errors
 
 // ErrorCodeDemuxFailed 错误码
 const ErrorCodeDemuxFailed = 0
+const ErrorCodeGetIndexFailed = 1
 
 // Error 异常
 type Error struct {

@@ -27,7 +27,8 @@ func main() {
 	// 声明路由
  	mux := http.NewServeMux()
 	mux.HandleFunc("/", routers.Welcome)
- 	mux.HandleFunc("/hls/", routers.Hls)
+ 	mux.HandleFunc("/hls/", routers.GetM3U8)
+	mux.HandleFunc("/hls/video/", routers.GetVideo)
 
 	// 启动服务`
 	port, _ := config.Get("server.port")
