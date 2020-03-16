@@ -38,7 +38,7 @@ func GetTsIndex(indexFilePath string) (*TsIndex, error) {
 	fmt.Println("finding indexFilePath:" + indexFilePath)
 
 	// 定义返回值
-	var pTsIndex *TsIndex
+	var pTsIndex *TsIndex 
 	var err error
 
 	// 判断是否已存在二进制索引
@@ -68,7 +68,6 @@ func GetTsIndex(indexFilePath string) (*TsIndex, error) {
 // feedFrame 输入帧数据
 func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 
-	// 记录早和最晚的时间
 	if indexer.minTime < 0 {
 		indexer.minTime = int(pts / 90)
 	} else if indexer.minTime > int(pts/90) {
@@ -85,19 +84,7 @@ func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 	t.time = int(pts / 90)
 	t.startOffset = offset
 
-	if timeInMap == nil {
-		var t *TimeSlice = &TimeSlice{}
-		t.time = int(pts / 90)
-		t.pkgNum = pkgNum
-		indexer.timesMap[t.time/1000] = t
-
-	} else {
-
-		// 向前推最早偏移量
-		if timeInMap.pkgNum > pkgNum {
-			timeInMap.pkgNum = pkgNum
-		}
-	}
+	indexer.timesArray = append(indexer.timesArray, t)
 }
 
 // writeIndexFile 将索引文件写入硬盘
@@ -147,7 +134,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
 
 	// 初始化解封装器
 	d.Init()
-
+	
 	fmt.Printf("Demuxing\n")
 
 	// 取ts文件
@@ -184,7 +171,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
 	// 创建索引结果对象
 	var tsIndex TsIndex
 	tsIndex.duration = (indexer.maxTime - indexer.minTime) / 1000
-	tsIndex.bindWidth = getFileSize(tsFilePath) / uint64(tsIndex.duration)
+	tsIndex.bindWidth = getFileSize(tsFilePath) / uint64(tsIndex.duration) 
 	tsIndex.timesArray = indexer.timesArray
 	return &tsIndex, nil
 }
