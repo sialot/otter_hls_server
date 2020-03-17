@@ -398,8 +398,8 @@ func (d *Demuxer) readpat(payload []byte, pHeader *header) error {
 		// 获取第一个节目作为解析目标，只解析第一个节目
 		d.curProgramPID = int(d.globalpat.programs[0].PID)
 
-		fmt.Printf("识别到pat表，PID：%d \n", pHeader.PID)
-		fmt.Printf("识别到当前Program，PID: %d \n", d.curProgramPID)
+		// fmt.Printf("识别到pat表，PID：%d \n", pHeader.PID)
+		// fmt.Printf("识别到当前Program，PID: %d \n", d.curProgramPID)
 		// fmt.Println(d.globalpat)
 	}
 
@@ -558,9 +558,9 @@ func (d *Demuxer) readpmt(payload []byte, pHeader *header) error {
 			}
 		}
 
-		fmt.Printf("识别到pmt表，PID：%d, streamcount:%d \n", pHeader.PID, streamCount)
-		fmt.Printf("识别到当前视频流，PID：%d \n", d.curVideoPID)
-		fmt.Printf("识别到当前音频流，PID：%d \n", d.curAudioPID)
+		//fmt.Printf("识别到pmt表，PID：%d, streamcount:%d \n", pHeader.PID, streamCount)
+		//fmt.Printf("识别到当前视频流，PID：%d \n", d.curVideoPID)
+		//fmt.Printf("识别到当前音频流，PID：%d \n", d.curAudioPID)
 		// fmt.Println(d.globalpmt)
 	}
 

@@ -6,9 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"bytes"
+	"math"
+	"encoding/binary"
 
 	errors "../errors"
 )
+
+// 索引速度优化、区分文件的索引锁
 
 // Indexer TS文件索引创建器
 type Indexer struct {
@@ -20,8 +25,8 @@ type Indexer struct {
 
 // TsIndex ts文件索引
 type TsIndex struct {
-	bindWidth  int      // 带宽(比特率)
-	duration   int         // 总时长
+	bindWidth  uint32      // 带宽(比特率)
+	duration   uint32      // 总时长
 	timesArray []TimeSlice // 时间片集合列表
 }
 
@@ -33,12 +38,11 @@ type TimeSlice struct {
 
 // GetTsIndex 获取ts文件索引
 func GetTsIndex(indexFilePath string) (*TsIndex, error) {
+	
+	var tsIndex *TsIndex
+	var err error
 
 	fmt.Println("finding indexFilePath:" + indexFilePath)
-
-	// 定义返回值
-	var pTsIndex *TsIndex 
-	var err error
 
 	// 判断是否已存在二进制索引
 	if !fileExists(indexFilePath) {
@@ -47,7 +51,7 @@ func GetTsIndex(indexFilePath string) (*TsIndex, error) {
 
 		// 索引器
 		var indexer Indexer
-		pTsIndex, err = indexer.createIndex(indexFilePath)
+		err := indexer.createIndex(indexFilePath)
 
 		// 创建索引失败
 		if err != nil {
@@ -59,9 +63,12 @@ func GetTsIndex(indexFilePath string) (*TsIndex, error) {
 
 		fmt.Println("tsidx file exists.")
 
+		tsIndex, err = readIndexFile(indexFilePath)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	return pTsIndex, nil
+	return tsIndex, nil
 }
 
 // feedFrame 输入帧数据
@@ -89,51 +96,152 @@ func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 // writeIndexFile 将索引文件写入硬盘
 //
 // 索引文件构成 
+// HEADER[0x12F(12bit),type(4bit)],CONTENT(96bit),0xffff(16bit)
+// type = 0 : CONTENT[bindWidth(32bit),zero(64bit)]]
+// type = 1 : CONTENT[duration(32bit),zero(64bit)]]
+// type = 2 : CONTENT[time(32bit),startOffset(64bit)]]
 //
-// [startmark(32bit)|duration(32bit)|bindWidth(32bit)|[time(32bit)|startOffset(64bit)] * N]
-// 
-// startmark	|开始标记固定 0x00 (32bit)
-// duration		|时长(32bit)
 // bindWidth    |码率(32bit)
-// time			|分片时间（单位秒）
-// startOffset	|分片偏移量
-func writeIndexFile(pTsIndex *TsIndex) error {
+// duration		|时长秒(32bit)
+// time			|分片时间（单位秒）(32bit)
+// startOffset	|分片偏移量(64bit)
+func writeIndexFile(pTsIndex *TsIndex, idxFilePath string) error {
 
+	var file *os.File
+	var err error
 
+	// 已存在索引清空文件
+	if fileExists(idxFilePath) {
+		file, err = os.Open(idxFilePath)
+		if err != nil {
+			return err
+		} else {
 
+			// 清空文件
+			file.Truncate(0)
+		}
 
+		defer file.Close()
 
-	// TODO
+	// 文件不存在创建文件
+	}  else {
+		file, err = os.Create(idxFilePath)
+		defer file.Close()
+	}
+
+	var bin_buf bytes.Buffer
+
+	// 写入带宽
+	binary.Write(&bin_buf, binary.BigEndian, uint16(0x12F0))
+	binary.Write(&bin_buf, binary.BigEndian, pTsIndex.bindWidth)
+	binary.Write(&bin_buf, binary.BigEndian, uint64(0x00))
+	binary.Write(&bin_buf, binary.BigEndian, uint16(0xFFFF))
+
+	// 写入时长
+	binary.Write(&bin_buf, binary.BigEndian, uint16(0x12F1))
+	binary.Write(&bin_buf, binary.BigEndian, pTsIndex.duration)
+	binary.Write(&bin_buf, binary.BigEndian, uint64(0x00))
+	binary.Write(&bin_buf, binary.BigEndian, uint16(0xFFFF))
+
+	// 写入时间片信息
+	var i int
+	for i = 0; i < len(pTsIndex.timesArray) ; i++ {
+		slice := pTsIndex.timesArray[i]
+		binary.Write(&bin_buf, binary.BigEndian, uint16(0x12F2))
+		bits := math.Float32bits(slice.time)
+		binary.Write(&bin_buf, binary.BigEndian, bits)
+		binary.Write(&bin_buf, binary.BigEndian, slice.startOffset)
+		binary.Write(&bin_buf, binary.BigEndian, uint16(0xFFFF))
+	}
+
+	_, err = file.Write(bin_buf.Bytes())
+	if err != nil {
+		fmt.Println("write index file failed, ", err.Error())
+		return err
+	}
+
 	return nil
 }
 
-// writeIndexFile 将索引文件写入硬盘
-func readIndexFile(tsIndexFilePath string) (*TsIndex, error) {
+// readIndexFile 从磁盘读取索引文件
+func readIndexFile(idxFilePath string) (*TsIndex, error) {
 
-	// TODO
-	return nil, nil
+	var file *os.File
+	var err error
+	var tsIndex TsIndex
+	tsIndex.timesArray = make([]TimeSlice, 0)
+
+	// 打开文件
+	file, err = os.Open(idxFilePath)
+	if err != nil {
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+		return nil, err
+	}
+	defer file.Close()
+
+	// 预加载包字节
+	data := make([]byte, 16)
+
+	// 取文件
+	for {
+		_, err := file.Read(data)
+
+		// 读取文件失败
+		if err != nil {
+			if err != io.EOF {
+				err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+				return nil, err
+			}
+			break
+		}
+
+		// 校验同步位
+		var syncData uint8 = data[0]
+		if syncData != 0x12 {
+			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+			return nil, err
+		}
+
+		// 检验结束位
+		var endSyncData uint16 = uint16(data[14]) << 8 | uint16(data[15])
+		if endSyncData != 0xFFFF {
+			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+			return nil, err
+		}
+
+		var dataType uint8 = data[1] & 0x0F
+		switch dataType {
+		case 0: 
+			tsIndex.bindWidth =  uint32(data[2]) << 24 | uint32(data[3]) << 16 | uint32(data[4]) << 8 | uint32(data[5])
+		case 1:	
+			tsIndex.duration =  uint32(data[2]) << 24 | uint32(data[3]) << 16 | uint32(data[4]) << 8 | uint32(data[5])
+		case 2:
+			var slice TimeSlice
+			slice.time = math.Float32frombits(uint32(data[2]) << 24 | uint32(data[3]) << 16 | uint32(data[4]) << 8 | uint32(data[5]))
+			slice.startOffset = uint64(data[6]) << 56 | uint64(data[7]) << 48 | uint64(data[9]) << 40 | uint64(data[9]) << 32|
+				uint64(data[10]) << 24 | uint64(data[11]) << 16 | uint64(data[12]) << 8 | uint64(data[13])
+
+			tsIndex.timesArray = append(tsIndex.timesArray, slice)
+		}
+	}
+
+	return &tsIndex, nil
 }
 
 // createIndex Info
-func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
+func (indexer *Indexer) createIndex(idxFilePath string) error {
 
 	// 初始化成员变量
 	indexer.minTime = -1
 	indexer.maxTime = -1
 	indexer.timesArray = make([]TimeSlice, 0)
 
-	// 获取ts文件路径
-	var tsFilePath = strings.TrimSuffix(idxFilePath, ".tsidx") + ".ts"
-
-	fmt.Println("try to open ts file:" + tsFilePath)
-
 	// 打开ts文件
+	var tsFilePath = strings.TrimSuffix(idxFilePath, ".tsidx") + ".ts"
 	file, err := os.Open(tsFilePath)
 	if err != nil {
-
-		fmt.Println("TsFile not exist!")
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile not exist!")
-		return nil, err
+		return err
 	}
 
 	defer file.Close()
@@ -157,7 +265,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
 		if err != nil {
 			if err != io.EOF {
 				err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile read failed!")
-				return nil, err
+				return err
 			}
 			break
 		}
@@ -170,8 +278,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
 
 			// 解封装失败 TODO
 			if err != nil {
-				fmt.Printf(err.Error())
-				return nil, err
+				return err
 			}
 			if pes != nil {
 				indexer.feedFrame(pes.PTS, pes.PkgOffset)
@@ -179,11 +286,14 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
 
 		}
 	}
+	fmt.Printf("Demux finish\n")
+
+	fmt.Printf("Indexing\n")
 
 	// 索引对象
 	var tsIndex TsIndex
-	tsIndex.duration = (indexer.maxTime - indexer.minTime) / 1000
-	tsIndex.bindWidth = int(getFileSize(tsFilePath) / uint64(tsIndex.duration)) 
+	tsIndex.duration = uint32(indexer.maxTime - indexer.minTime) / 1000
+	tsIndex.bindWidth = uint32(getFileSize(tsFilePath) / uint64(tsIndex.duration)) 
 	tsIndex.timesArray = make([]TimeSlice, 0)
 	
 	// 整理切片时间,time单位为秒，改为每秒一个切片
@@ -201,7 +311,15 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*TsIndex, error) {
 		}
 	}
 
-	return &tsIndex, nil
+	// 写索引文件
+	fileWriteErr := writeIndexFile(&tsIndex, idxFilePath)
+	if fileWriteErr != nil {
+		return fileWriteErr
+	}
+
+	fmt.Printf("Indexing finish\n")
+
+	return nil
 }
 
 // fileExists 判断所给路径文件/文件夹是否存在
