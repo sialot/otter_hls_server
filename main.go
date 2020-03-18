@@ -9,6 +9,7 @@ import (
 	config "./config"
 	logger "./log"
 	routers "./routers"
+	hls "./hls"
 )
 
 // Log 系统日志
@@ -18,6 +19,7 @@ var Log *ezlog.Log
 func init() {
 	config.InitConfig()
 	logger.InitLog()
+	hls.Init()
 	Log = logger.Log
 }
 
