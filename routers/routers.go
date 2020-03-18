@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	strings "strings"
-
 	hls "../hls"
 )
 
@@ -20,7 +19,7 @@ func GetM3U8(w http.ResponseWriter, r *http.Request) {
 	var url = r.URL.Path
 
 	// 非m3u8请求，返回404
-	if !strings.HasSuffix(url, ".m3u8") {
+	if !(strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".M3U8")) {
 		w.WriteHeader(404)
 		w.Write([]byte("ERROR 404: The file requested is not exist!"))
 		return
