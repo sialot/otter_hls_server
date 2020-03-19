@@ -684,9 +684,9 @@ func (d *Demuxer) readPes(pesBuffer []byte, pHeader *header) (*Pes, error) {
 	tp.PID = pHeader.PID
 
 	// PID:513,streamID:192,PESPacketLength:386,PTS:23508000,DTS:0, RealDataLength:378
-	if d.curVideoPID != int(pHeader.PID) {
-		return nil, nil
-	}
+	// if d.curVideoPID != int(pHeader.PID) {
+	// 	return nil, nil
+	// }
 	//fmt.Printf("PTS:%d,streamID:%d,PESPacketLength:%d,PTS:%d,DTS:%d,RealDataLength:%d,pkgOffset:%d \n ", pHeader.PID, tp.streamID, tp.PESPacketLength, tp.PTS, tp.DTS, len(pesBuffer), tp.PkgOffset)
 	//fmt.Printf("ptime:%d,dtime:%d,pkgOffset:%d \n", tp.PTS, tp.DTS, tp.PkgOffset)
 	return &tp, nil
