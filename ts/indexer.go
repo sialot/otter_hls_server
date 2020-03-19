@@ -15,6 +15,7 @@ import (
 
 // 索引速度优化、区分文件的索引锁
 // 索引计算更新时间，对比ts文件防止索引失效
+// 索引与ts文件映射采用数据库文件存储
 
 // Indexer TS文件索引创建器
 type Indexer struct {
@@ -33,8 +34,8 @@ type TsIndex struct {
 
 // TimeSlice 以秒为单位的时间片
 type TimeSlice struct {
-	time        float32
-	startOffset uint64 // 开始偏移量
+	Time        float32
+	StartOffset uint64 // 开始偏移量
 }
 
 // GetTsIndex 获取ts文件索引
@@ -86,8 +87,8 @@ func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 	}
 
 	var t TimeSlice
-	t.time = float32(pts / 90)
-	t.startOffset = offset
+	t.Time = float32(pts / 90)
+	t.StartOffset = offset
 
 	indexer.frameArray = append(indexer.frameArray, t)
 }
@@ -147,9 +148,9 @@ func writeIndexFile(pTsIndex *TsIndex, idxFilePath string) error {
 	for i = 0; i < len(pTsIndex.TimesArray) ; i++ {
 		slice := pTsIndex.TimesArray[i]
 		binary.Write(&bin_buf, binary.BigEndian, uint16(0x12F2))
-		bits := math.Float32bits(slice.time)
+		bits := math.Float32bits(slice.Time)
 		binary.Write(&bin_buf, binary.BigEndian, bits)
-		binary.Write(&bin_buf, binary.BigEndian, slice.startOffset)
+		binary.Write(&bin_buf, binary.BigEndian, slice.StartOffset)
 		binary.Write(&bin_buf, binary.BigEndian, uint16(0xFFFF))
 	}
 
@@ -216,8 +217,8 @@ func readIndexFile(idxFilePath string) (*TsIndex, error) {
 			tsIndex.Duration =  uint32(data[2]) << 24 | uint32(data[3]) << 16 | uint32(data[4]) << 8 | uint32(data[5])
 		case 2:
 			var slice TimeSlice
-			slice.time = math.Float32frombits(uint32(data[2]) << 24 | uint32(data[3]) << 16 | uint32(data[4]) << 8 | uint32(data[5]))
-			slice.startOffset = uint64(data[6]) << 56 | uint64(data[7]) << 48 | uint64(data[9]) << 40 | uint64(data[9]) << 32|
+			slice.Time = math.Float32frombits(uint32(data[2]) << 24 | uint32(data[3]) << 16 | uint32(data[4]) << 8 | uint32(data[5]))
+			slice.StartOffset = uint64(data[6]) << 56 | uint64(data[7]) << 48 | uint64(data[9]) << 40 | uint64(data[9]) << 32|
 				uint64(data[10]) << 24 | uint64(data[11]) << 16 | uint64(data[12]) << 8 | uint64(data[13])
 
 			tsIndex.TimesArray = append(tsIndex.TimesArray, slice)
@@ -301,11 +302,11 @@ func (indexer *Indexer) createIndex(idxFilePath string) error {
 	var second float32
 	for i = 0; i < len(indexer.frameArray); i++ {
 
-		second = (indexer.frameArray[i].time - float32(indexer.minTime)) / 1000
+		second = (indexer.frameArray[i].Time - float32(indexer.minTime)) / 1000
 
 		if int(second) > cursecond {
 			cursecond = int(second)
-			indexer.frameArray[i].time = second
+			indexer.frameArray[i].Time = second
 			tsIndex.TimesArray = append(tsIndex.TimesArray, indexer.frameArray[i])
 		}
 	}
