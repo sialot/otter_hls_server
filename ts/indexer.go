@@ -15,7 +15,6 @@ import (
 
 // 索引速度优化、区分文件的索引锁
 // 索引计算更新时间，对比ts文件防止索引失效
-// 索引与ts文件映射采用数据库文件存储
 
 // Indexer TS文件索引创建器
 type Indexer struct {

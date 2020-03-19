@@ -1,8 +1,10 @@
 server:
   port: 4000
-  domain: http://127.0.0.1:4000/
+  domainName: http://127.0.0.1:4000/
 media:
   localDir: /Volumes/user/var/media/
+m3u8:
+  target_duration: 10
 log:
   syslog:
     filename: /Volumes/user/var/log/otter_hls_server/system
