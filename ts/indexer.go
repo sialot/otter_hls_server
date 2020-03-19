@@ -74,8 +74,6 @@ func GetTsIndex(indexFilePath string) (*TsIndex, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(tsIndex)
 	
 	return tsIndex, nil
 }
