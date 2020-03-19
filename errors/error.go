@@ -2,6 +2,8 @@ package errors
 
 // ErrorCodeDemuxFailed 错误码
 const ErrorCodeDemuxFailed = 0
+
+// ErrorCodeGetIndexFailed 错误吗索引获取失败
 const ErrorCodeGetIndexFailed = 1
 
 // Error 异常

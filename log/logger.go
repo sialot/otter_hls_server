@@ -5,9 +5,10 @@ import (
 	"github.com/sialot/ezlog"
 )
 
+// Log 日志对象
 var Log *ezlog.Log
 
-// 准备日志
+// InitLog 准备日志
 func InitLog() {
 
 	fileName, _ := config.SysConfig.Get("log.syslog.filename")
@@ -19,7 +20,7 @@ func InitLog() {
 		BufferSize: 0}
 }
 
-// 清空缓冲区
+// FlushLog 清空缓冲区
 func FlushLog() {
 	Log.Flush()
 }

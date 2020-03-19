@@ -1,10 +1,9 @@
 server:
   port: 4000
+  domain: http://127.0.0.1:4000/
 media:
-  localDir: /var/media/
-db:
-  ip: 127.0.0.1	
+  localDir: /Volumes/user/var/media/
 log:
   syslog:
-    filename: /var/log/otter_hls_server/system
+    filename: /Volumes/user/var/log/otter_hls_server/system
     pattern: -2006-01-02
