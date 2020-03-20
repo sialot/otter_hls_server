@@ -2,6 +2,11 @@ package routers
 
 import (
 	"net/http"
+	"os"
+	"io"
+	"strconv"
+	"fmt"
+	"path/filepath"
 
 	strings "strings"
 
@@ -35,7 +40,7 @@ func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 返回m3u8文件内容
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/x-mpegURL")
 	w.Write([]byte(m3u8))
 }
 
@@ -60,12 +65,128 @@ func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 返回m3u8文件内容
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/x-mpegURL")
 	w.Write([]byte(m3u8))
 }
 
 // GetVideo 视频文件获取
-func GetVideo(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte("GetVideo！"))
+func GetVideoStream(w http.ResponseWriter, r *http.Request) {
+
+	var url = r.URL.Path
+
+	// 非m3u8请求，返回404
+	if !(strings.HasSuffix(url, ".ts")) {
+		w.WriteHeader(404)
+		w.Write([]byte("ERROR 404: unsupport file type!"))
+		return
+	}
+
+	// 获取视频文件信息
+	videoInfo, baseFileURI, err := hls.GetVideoStream(strings.Replace(r.URL.Path, "/video/", "", 1))
+	
+	// 打开文件
+	file, err:= os.Open(hls.LocalDir + baseFileURI + ".ts")
+	if err != nil {
+		w.WriteHeader(404)
+		w.Write([]byte("ERROR 404: The file requested is not exist!"))
+		file.Close()
+		return
+	}
+
+	// 获取文件状态
+	fileStat, err:= file.Stat()
+	if err != nil {
+		w.WriteHeader(404)
+		w.Write([]byte("ERROR 404: The file requested is not exist!"))
+		file.Close()
+		return
+	}
+
+	_, fileName := filepath.Split(r.URL.Path)
+	w.Header().Set("Last-Modified", fileStat.ModTime().Format(http.TimeFormat))
+	w.Header().Set("Content-Disposition", "attachment; filename=" + fileName)
+	w.Header().Set("Content-Type", "video/MP2T")
+	w.Header().Set("Content-Length", strconv.FormatUint(videoInfo.Size, 10))
+
+	file.Seek(int64(videoInfo.StartOffset), 0)
+
+	// Stream data out !
+	var tranceSize uint64
+
+	buf := make([]byte, min(1024 * 1024 * 10, fileStat.Size()))
+	n := 0
+
+	fmt.Printf("buf len: %d \n" , len(buf))
+
+	for err == nil {
+
+		n, err = file.Read(buf)
+
+		// 读取文件失败
+		if err != nil {
+			if err != io.EOF {
+				w.WriteHeader(404)
+				w.Write([]byte("ERROR 404: unsupport file type!"))
+			}
+			break
+		}
+
+		if tranceSize +  uint64(n) > videoInfo.Size {
+			w.Write(buf[0:videoInfo.Size - tranceSize])
+			tranceSize += videoInfo.Size - tranceSize
+			fmt.Println("finish!")
+			break
+		} else {
+			w.Write(buf[0:n])
+			tranceSize += uint64(n)
+		}
+
+		fmt.Printf(">>>> tranceSize: %d/%d \n" , tranceSize, videoInfo.Size)
+	}
+
+	file.Close()
+	
+	fmt.Printf(">>>> tranceSize: %d/%d \n" , tranceSize, videoInfo.Size)
+
+	fmt.Println("OK!")
+}
+
+func Demo(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(">>><<<")
+
+	file, _:= os.Open("/Volumes/user/var/media/2.ts")
+
+	defer file.Close()
+
+	fileStat, _ := file.Stat()
+
+	w.Header().Set("Last-Modified", fileStat.ModTime().Format(http.TimeFormat))
+	w.Header().Set("Content-Disposition", "attachment; filename=2.ts")
+	w.Header().Set("Content-Type", "video/MP2T")
+	w.Header().Set("Content-Length", strconv.FormatInt(fileStat.Size(), 10))
+
+	// Stream data out !
+	buf := make([]byte, min(188*1000, fileStat.Size()))
+	n := 0
+
+	fmt.Println(fileStat.Size())
+
+	var err error
+	for err == nil {
+		n, err = file.Read(buf)
+		if err!=nil {
+			fmt.Println(err.Error())
+		}
+
+		w.Write(buf[0:n])
+	}
+
+	fmt.Println("OK!")
+}	
+
+func min(x int64, y int64) int64 {
+    if x < y {
+        return x
+    }
+    return y
 }

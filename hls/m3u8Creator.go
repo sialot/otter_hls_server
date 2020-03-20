@@ -10,7 +10,7 @@ import (
 )
 
 // 文件本地路径
-var localDir string
+var LocalDir string
 
 // 服务器域名前缀
 var serverDomainName string
@@ -23,7 +23,7 @@ func Init() {
 
 	// 提取本地文件路径
 	var err error
-	localDir, err = config.SysConfig.Get("media.localDir")
+	LocalDir, err = config.SysConfig.Get("media.localDir")
 
 	if err != nil {
 		panic(err.Error())
@@ -55,7 +55,7 @@ func GetM3U8(m3u8FileURI string, mainFlag bool) (string, error) {
 	var baseFileURI = strings.TrimSuffix(strings.TrimSuffix(m3u8FileURI, ".m3u8"), ".M3U8")
 
 	// 获取ts二进制索引文件本地路径
-	var binaryIndexFilePath = localDir + baseFileURI + ".tsidx"
+	var binaryIndexFilePath = LocalDir + baseFileURI + ".tsidx"
 
 	// 获取ts索引对象
 	mediaFileIndex, err := ts.GetMediaFileIndex(binaryIndexFilePath)

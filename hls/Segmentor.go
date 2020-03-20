@@ -10,7 +10,7 @@ import (
 )
 
 // 视频文件信息
-type VideoFile struct {
+type VideoInfo struct {
 	Sequence    int     // 序号
 	StartOffset uint64  // 开始偏移量（字节）
 	Size        uint64  // 大小（字节）
@@ -18,12 +18,12 @@ type VideoFile struct {
 }
 
 // GetVideoList 计算视频列表
-func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []VideoFile {
+func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []VideoInfo {
 	
-	var videoList []VideoFile = make([]VideoFile, 0)
+	var videoList []VideoInfo = make([]VideoInfo, 0)
 	var curSeq int = 0
 
-	var file VideoFile
+	var file VideoInfo
 	file.Sequence = curSeq
 	file.StartOffset = 0
 	file.Size = 0
@@ -71,7 +71,7 @@ func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []V
 }
 
 // 获取视频流
-func GetVideoStream(videoFileURI string) (*VideoFile, error){
+func GetVideoStream(videoFileURI string) (*VideoInfo, string, error){
 
 	// 无后缀的基本文件路径
 	baseVideoFileURI := strings.TrimSuffix(strings.TrimSuffix(videoFileURI, ".ts"), ".TS")
@@ -81,21 +81,20 @@ func GetVideoStream(videoFileURI string) (*VideoFile, error){
 	sequence, err := strconv.Atoi(sequenceStr)
 	if err!= nil {
 		err := errors.NewError(errors.ErrorCodeGetStreamFailed, "GetVideoStream failed, can't get fileNumber!")
-		return nil, err
+		return nil, "", err
 	}
-	fmt.Println(sequence)
 
 	// 无后缀的基本文件路径
 	baseFileURI := baseVideoFileURI[0 : strings.LastIndex(baseVideoFileURI, "_")]
 
 	// 获取ts二进制索引文件本地路径
-	var binaryIndexFilePath = localDir + baseFileURI + ".tsidx"
+	var binaryIndexFilePath = LocalDir + baseFileURI + ".tsidx"
 	fmt.Println(binaryIndexFilePath)
 
 	// 获取ts索引对象
 	mediaFileIndex, err := ts.GetMediaFileIndex(binaryIndexFilePath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	
 	// 获取文件列表
@@ -105,10 +104,10 @@ func GetVideoStream(videoFileURI string) (*VideoFile, error){
 	var i int
 	for i=0; i<len(videoList); i++ {
 		if videoList[i].Sequence == sequence {
-			return &videoList[i], nil
+			return &videoList[i], baseFileURI, nil
 		}
 	}
 
 	err = errors.NewError(errors.ErrorCodeGetStreamFailed, "GetVideoStream failed, can't get videoFile!")
-	return nil, err
+	return nil, "", err
 }
