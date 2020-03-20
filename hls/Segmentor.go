@@ -1,7 +1,12 @@
 package hls
 
 import (
+	"fmt"
+	"strings"
+	"strconv"
+
 	ts "../ts"
+	errors "../errors"
 )
 
 // 视频文件信息
@@ -63,4 +68,47 @@ func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []V
 	videoList = append(videoList, file)
 
 	return videoList
+}
+
+// 获取视频流
+func GetVideoStream(videoFileURI string) (*VideoFile, error){
+
+	// 无后缀的基本文件路径
+	baseVideoFileURI := strings.TrimSuffix(strings.TrimSuffix(videoFileURI, ".ts"), ".TS")
+	sequenceStr := baseVideoFileURI[strings.LastIndex(baseVideoFileURI, "_") + 1 : len(baseVideoFileURI)]
+	
+	// 获取视频分片序号
+	sequence, err := strconv.Atoi(sequenceStr)
+	if err!= nil {
+		err := errors.NewError(errors.ErrorCodeGetStreamFailed, "GetVideoStream failed, can't get fileNumber!")
+		return nil, err
+	}
+	fmt.Println(sequence)
+
+	// 无后缀的基本文件路径
+	baseFileURI := baseVideoFileURI[0 : strings.LastIndex(baseVideoFileURI, "_")]
+
+	// 获取ts二进制索引文件本地路径
+	var binaryIndexFilePath = localDir + baseFileURI + ".tsidx"
+	fmt.Println(binaryIndexFilePath)
+
+	// 获取ts索引对象
+	mediaFileIndex, err := ts.GetMediaFileIndex(binaryIndexFilePath)
+	if err != nil {
+		return nil, err
+	}
+	
+	// 获取文件列表
+	videoList := GetVideoList(mediaFileIndex, float64(targetDuration))
+
+	// 找文件
+	var i int
+	for i=0; i<len(videoList); i++ {
+		if videoList[i].Sequence == sequence {
+			return &videoList[i], nil
+		}
+	}
+
+	err = errors.NewError(errors.ErrorCodeGetStreamFailed, "GetVideoStream failed, can't get videoFile!")
+	return nil, err
 }
