@@ -50,31 +50,31 @@ const VERSION uint8 = 1
 // GetMediaFileIndex 获取ts文件索引
 func GetMediaFileIndex(indexFilePath string) (*MediaFileIndex, error) {
 
-	var MediaFileIndex *MediaFileIndex
+	var mediaFileIndex *MediaFileIndex
 	var err error
 
-	// 判断是否已存在二进制索引
-	if !common.FileExists(indexFilePath) {
+	// 尝试读取索引文件
+	mediaFileIndex, err = readIndexFile(indexFilePath)
 
-		fmt.Println("tsidx file not exist,now try to build one.")
+	// 读取索引文件失败，重新创建索引
+	if err != nil {
+		fmt.Printf("readIndexFile file failed: %s \n", err.Error())
+		fmt.Println("now try to build new one.")
 
 		// 索引器 TODO 需要加锁
 		var indexer Indexer
-		err := indexer.createIndex(indexFilePath)
+		mediaFileIndex, err = indexer.createIndex(indexFilePath)
 
 		// 创建索引失败
 		if err != nil {
-			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file get failed!")
+			fmt.Printf("CreateIndex file failed: %s \n", err.Error())
 			return nil, err
 		}
+
+		return mediaFileIndex, nil
 	}
 
-	MediaFileIndex, err = readIndexFile(indexFilePath)
-	if err != nil {
-		return nil, err
-	}
-
-	return MediaFileIndex, nil
+	return mediaFileIndex, nil
 }
 
 // feedFrame 输入帧数据
@@ -121,24 +121,18 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, idxFilePath string) error {
 
 	var file *os.File
 	var err error
+	file, err = os.OpenFile(idxFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 
-	// 已存在索引清空文件
-	if common.FileExists(idxFilePath) {
-		file, err = os.Open(idxFilePath)
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		fmt.Println("openfile failed:" + err.Error())
+		return err
+	} else {
 
 		// 清空文件
 		file.Truncate(0)
-
-		defer file.Close()
-
-		// 文件不存在创建文件
-	} else {
-		file, err = os.Create(idxFilePath)
-		defer file.Close()
 	}
+
+	defer file.Close()
 
 	var binBuf bytes.Buffer
 
@@ -203,14 +197,49 @@ func readIndexFile(idxFilePath string) (*MediaFileIndex, error) {
 	// 打开文件
 	file, err = os.Open(idxFilePath)
 	if err != nil {
-		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed, can't open file!")
 		return nil, err
 	}
 	defer file.Close()
 
+	// 获取索引文件大小和修改时间
+	fi, err := file.Stat()
+	if err != nil {
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file getSize failed!")
+		return nil, err
+	}
+
+	// 大小为零认为是错误
+	if fi.Size() == 0 {
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed, empty file!")
+		return nil, err
+	}
+
+	// 获取ts文件修改时间
+	var tsFilePath = strings.TrimSuffix(idxFilePath, ".tsidx") + ".ts"
+	tsFile, err := os.Open(tsFilePath)
+	if err != nil {
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "TsFile not exist!")
+		return nil, err
+	}
+
+	tsfi, err := tsFile.Stat()
+	if err != nil {
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file getSize failed!")
+		return nil, err
+	}
+
+	// 媒体文件被修改
+	if tsfi.ModTime().Unix() > fi.ModTime().Unix() {
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file is out of data!")
+		return nil, err
+	}
+
+	defer tsFile.Close()
+
 	// 预加载包字节
 	data := make([]byte, 18)
-
+	
 	// 取文件
 	for {
 		_, err := file.Read(data)
@@ -227,14 +256,14 @@ func readIndexFile(idxFilePath string) (*MediaFileIndex, error) {
 		// 校验同步位
 		var syncData uint8 = data[0] >> 4
 		if syncData != 0x0f {
-			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file syncData error!")
 			return nil, err
 		}
 
 		// 检验结束位
 		var endSyncData uint16 = uint16(data[17])
 		if endSyncData != 0xFF {
-			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file endSyncData error!")
 			return nil, err
 		}
 
@@ -244,7 +273,7 @@ func readIndexFile(idxFilePath string) (*MediaFileIndex, error) {
 
 			version := data[1]
 			if version != VERSION {
-				err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+				err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file version error!")
 				return nil, err
 			}
 
@@ -266,7 +295,7 @@ func readIndexFile(idxFilePath string) (*MediaFileIndex, error) {
 }
 
 // createIndex Info
-func (indexer *Indexer) createIndex(idxFilePath string) error {
+func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error) {
 
 	// 初始化成员变量
 	indexer.minTime = -1
@@ -278,7 +307,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) error {
 	file, err := os.Open(tsFilePath)
 	if err != nil {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile not exist!")
-		return err
+		return nil, err
 	}
 
 	defer file.Close()
@@ -302,7 +331,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) error {
 		if err != nil {
 			if err != io.EOF {
 				err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile read failed!")
-				return err
+				return nil, err
 			}
 			break
 		}
@@ -315,7 +344,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) error {
 
 			// 解封装失败 TODO
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if pes != nil {
 				indexer.feedFrame(pes.PTS, pes.PkgOffset)
@@ -382,10 +411,10 @@ func (indexer *Indexer) createIndex(idxFilePath string) error {
 	// 写索引文件
 	fileWriteErr := writeIndexFile(&MediaFileIndex, idxFilePath)
 	if fileWriteErr != nil {
-		return fileWriteErr
+		return nil, fileWriteErr
 	}
 
 	fmt.Printf("Indexing finish\n")
 
-	return nil
+	return &MediaFileIndex, nil
 }
