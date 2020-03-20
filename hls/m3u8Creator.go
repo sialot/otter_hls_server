@@ -26,25 +26,25 @@ func Init() {
 	localDir, err = config.SysConfig.Get("media.localDir")
 
 	if err != nil {
-		fmt.Println("Can't find media.localDir")
+		panic(err.Error())
 	}
 
 	serverDomainName, err = config.SysConfig.Get("server.domainName")
 
 	if err != nil {
-		fmt.Println("Can't find server.domainName")
+		panic(err.Error())
 	}
 
 	var targetDurationStr string
 	targetDurationStr, err = config.SysConfig.Get("m3u8.target_duration")
 
 	if err != nil {
-		fmt.Println("Can't find m3u8.target_duration")
+		panic(err.Error())
 	}
 
 	targetDuration, err = strconv.Atoi(targetDurationStr)
 	if err != nil {
-		fmt.Println("Can't find m3u8.target_duration")
+		panic(err.Error())
 	}
 }
 
