@@ -2,14 +2,14 @@ package hls
 
 import (
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 
-	ts "../ts"
 	errors "../errors"
+	ts "../ts"
 )
 
-// 视频文件信息
+// VideoInfo 视频文件信息
 type VideoInfo struct {
 	Sequence    int     // 序号
 	StartOffset uint64  // 开始偏移量（字节）
@@ -19,7 +19,7 @@ type VideoInfo struct {
 
 // GetVideoList 计算视频列表
 func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []VideoInfo {
-	
+
 	var videoList []VideoInfo = make([]VideoInfo, 0)
 	var curSeq int = 0
 
@@ -70,22 +70,22 @@ func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []V
 	return videoList
 }
 
-// 获取视频流
-func GetVideoStream(videoFileURI string) (*VideoInfo, string, error){
+// GetVideoStream 获取视频流
+func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 
 	// 无后缀的基本文件路径
 	baseVideoFileURI := strings.TrimSuffix(strings.TrimSuffix(videoFileURI, ".ts"), ".TS")
-	sequenceStr := baseVideoFileURI[strings.LastIndex(baseVideoFileURI, "_") + 1 : len(baseVideoFileURI)]
-	
+	sequenceStr := baseVideoFileURI[strings.LastIndex(baseVideoFileURI, "_")+1 : len(baseVideoFileURI)]
+
 	// 获取视频分片序号
 	sequence, err := strconv.Atoi(sequenceStr)
-	if err!= nil {
+	if err != nil {
 		err := errors.NewError(errors.ErrorCodeGetStreamFailed, "GetVideoStream failed, can't get fileNumber!")
 		return nil, "", err
 	}
 
 	// 无后缀的基本文件路径
-	baseFileURI := baseVideoFileURI[0 : strings.LastIndex(baseVideoFileURI, "_")]
+	baseFileURI := baseVideoFileURI[0:strings.LastIndex(baseVideoFileURI, "_")]
 
 	// 获取ts二进制索引文件本地路径
 	var binaryIndexFilePath = LocalDir + baseFileURI + ".tsidx"
@@ -96,13 +96,13 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error){
 	if err != nil {
 		return nil, "", err
 	}
-	
+
 	// 获取文件列表
 	videoList := GetVideoList(mediaFileIndex, float64(targetDuration))
 
 	// 找文件
 	var i int
-	for i=0; i<len(videoList); i++ {
+	for i = 0; i < len(videoList); i++ {
 		if videoList[i].Sequence == sequence {
 			return &videoList[i], baseFileURI, nil
 		}

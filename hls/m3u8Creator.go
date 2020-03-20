@@ -9,7 +9,7 @@ import (
 	ts "../ts"
 )
 
-// 文件本地路径
+// LocalDir 文件本地路径
 var LocalDir string
 
 // 服务器域名前缀
@@ -123,7 +123,7 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) string
 	videoList := GetVideoList(mediaFileIndex, float64(targetDuration))
 
 	var i int
-	for i=0; i<len(videoList); i++ {
+	for i = 0; i < len(videoList); i++ {
 
 		// #EXTINF:6.006,
 		resultStr += "#EXTINF:" + fmt.Sprintf("%.2f", videoList[i].Duration) + "\n"
@@ -136,4 +136,3 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) string
 
 	return resultStr
 }
-
