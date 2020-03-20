@@ -11,7 +11,7 @@ import (
 const TsPkgSize int = 188
 
 // TsReloadNum 预加载包数量
-const TsReloadNum int = 30000
+const TsReloadNum int = 100000
 
 // header Ts头
 type header struct {

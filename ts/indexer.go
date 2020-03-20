@@ -59,8 +59,8 @@ func GetMediaFileIndex(indexFilePath string) (*MediaFileIndex, error) {
 
 	// 读取索引文件失败，重新创建索引
 	if err != nil {
-		fmt.Printf("readIndexFile file failed: %s \n", err.Error())
-		fmt.Println("now try to build new one.")
+		// fmt.Printf("readIndexFile file failed: %s \n", err.Error())
+		// fmt.Println("now try to build new one.")
 
 		// 索引器 TODO 需要加锁
 		var indexer Indexer
@@ -129,12 +129,10 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, idxFilePath string) error {
 	if err != nil {
 		fmt.Println("openfile failed:" + err.Error())
 		return err
-	} else {
-
-		// 清空文件
-		file.Truncate(0)
 	}
 
+	// 清空文件
+	file.Truncate(0)
 	defer file.Close()
 
 	var binBuf bytes.Buffer
@@ -257,7 +255,7 @@ func readIndexFile(idxFilePath string) (*MediaFileIndex, error) {
 
 	// 预加载包字节
 	data := make([]byte, 18)
-	
+
 	// 取文件
 	for {
 		_, err := file.Read(data)
@@ -300,7 +298,7 @@ func readIndexFile(idxFilePath string) (*MediaFileIndex, error) {
 		case 1:
 
 			MediaFileIndex.VideoSize = uint64(data[1])<<56 | uint64(data[2])<<48 | uint64(data[3])<<40 | uint64(data[4])<<32 |
-			uint64(data[5])<<24 | uint64(data[6])<<16 | uint64(data[7])<<8 | uint64(data[8])
+				uint64(data[5])<<24 | uint64(data[6])<<16 | uint64(data[7])<<8 | uint64(data[8])
 
 		case 2:
 
@@ -336,7 +334,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 	defer file.Close()
 
 	// 获取文件状态
-	fileStat, err:= file.Stat()
+	fileStat, err := file.Stat()
 	if err != nil {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile not exist!")
 		return nil, err
@@ -350,8 +348,6 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 
 	// 初始化解封装器
 	d.Init()
-
-	fmt.Printf("Demuxing\n")
 
 	// 取ts文件
 	for {
@@ -382,9 +378,6 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 
 		}
 	}
-	fmt.Printf("Demux finish\n")
-
-	fmt.Printf("Indexing\n")
 
 	// 索引对象
 	var MediaFileIndex MediaFileIndex
@@ -445,15 +438,13 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 		return nil, fileWriteErr
 	}
 
-	fmt.Printf("Indexing finish\n")
-
 	return &MediaFileIndex, nil
 }
 
 // min
 func min(x int64, y int64) int64 {
-    if x < y {
-        return x
-    }
-    return y
+	if x < y {
+		return x
+	}
+	return y
 }

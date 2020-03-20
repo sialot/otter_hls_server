@@ -2,6 +2,7 @@ package hls
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -102,11 +103,13 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 
 	// 找文件
 	var i int
+	log.Println("Seek start!")
 	for i = 0; i < len(videoList); i++ {
 		if videoList[i].Sequence == sequence {
 			return &videoList[i], baseFileURI, nil
 		}
 	}
+	log.Println("Seek end!")
 
 	err = errors.NewError(errors.ErrorCodeGetStreamFailed, "GetVideoStream failed, can't get videoFile!")
 	return nil, "", err
