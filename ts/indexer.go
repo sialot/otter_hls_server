@@ -32,6 +32,7 @@ type Frame struct {
 
 // MediaFileIndex ts文件索引
 type MediaFileIndex struct {
+	VideoSize  uint64      // 视频文件大小
 	BindWidth  uint32      // 带宽(比特率)
 	Duration   uint32      // 总时长
 	TimesArray []TimeSlice // 时间片集合列表
@@ -45,7 +46,7 @@ type TimeSlice struct {
 }
 
 // VERSION 索引版本号
-const VERSION uint8 = 1
+const VERSION uint8 = 0
 
 // GetMediaFileIndex 获取ts文件索引
 func GetMediaFileIndex(indexFilePath string) (*MediaFileIndex, error) {
@@ -105,9 +106,11 @@ func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 // 每个包 144bit
 // HEADER[0xf(4bit),type(4bit)],PAYLOAD(128bit),ENDFLAG[0xff(8bit)]
 //
-// type = 0 时表示基本索引信息
+// type = 0 时表示索引基本信息
 // PAYLOAD[version(8bit), bindWidth(32bit),duration(32bit),reserve(56bit)]
-// type = 1 时表示帧数据
+// type = 1 时表示视频文件基本信息
+// PAYLOAD[video_size(64bit), reserve(64bit)]
+// type = 2 时表示帧数据
 // PAYLOAD[mintime(32bit),maxtime(32bit),startOffset(64bit)]]
 //
 // version：索引版本
@@ -136,12 +139,12 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, idxFilePath string) error {
 
 	var binBuf bytes.Buffer
 
-	// ========= 写入基础文件信息 START=========
+	// ========= 写入索引文件基本信息 START=========
 	// 头信息 HEADER[0xf(4bit),type=0(4bit)]
 	binary.Write(&binBuf, binary.BigEndian, uint8(0xF0))
 
 	// 载荷 PAYLOAD[version=1(8bit), bindWidth(32bit),duration(32bit),reserve(56bit)]
-	binary.Write(&binBuf, binary.BigEndian, uint8(0x1))
+	binary.Write(&binBuf, binary.BigEndian, uint8(VERSION))
 	binary.Write(&binBuf, binary.BigEndian, pMediaFileIndex.BindWidth)
 	binary.Write(&binBuf, binary.BigEndian, pMediaFileIndex.Duration)
 
@@ -153,7 +156,22 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, idxFilePath string) error {
 	// ENDFLAG
 	binary.Write(&binBuf, binary.BigEndian, uint8(0xFF))
 
-	// ========= 写入基础文件信息 END=========
+	// ========= 写入索引文件基本信息 END=========
+
+	// ========= 写入视频文件信息 START=========
+	// 头信息 HEADER[0xf(4bit),type=0(4bit)]
+	binary.Write(&binBuf, binary.BigEndian, uint8(0xF1))
+
+	// 载荷 PAYLOAD[video_size(64bit), reserve(64bit)]
+	binary.Write(&binBuf, binary.BigEndian, pMediaFileIndex.VideoSize)
+
+	// 保留位
+	binary.Write(&binBuf, binary.BigEndian, uint64(0))
+
+	// ENDFLAG
+	binary.Write(&binBuf, binary.BigEndian, uint8(0xFF))
+
+	// ========= 写入帧数据信息 END =========
 
 	// ========= 写入帧数据信息 START=========
 	var i int
@@ -163,7 +181,7 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, idxFilePath string) error {
 		slice := pMediaFileIndex.TimesArray[i]
 
 		// 头信息 HEADER[0xf(4bit),type=1(4bit)]
-		binary.Write(&binBuf, binary.BigEndian, uint8(0xF1))
+		binary.Write(&binBuf, binary.BigEndian, uint8(0xF2))
 
 		// 载荷 PAYLOAD[mintime(32bit),maxtime(32bit),startOffset(64bit)]]
 		minTimeBits := math.Float32bits(slice.MinTime)
@@ -281,6 +299,11 @@ func readIndexFile(idxFilePath string) (*MediaFileIndex, error) {
 			MediaFileIndex.Duration = uint32(data[6])<<24 | uint32(data[7])<<16 | uint32(data[8])<<8 | uint32(data[9])
 		case 1:
 
+			MediaFileIndex.VideoSize = uint64(data[1])<<56 | uint64(data[2])<<48 | uint64(data[3])<<40 | uint64(data[4])<<32 |
+			uint64(data[5])<<24 | uint64(data[6])<<16 | uint64(data[7])<<8 | uint64(data[8])
+
+		case 2:
+
 			var slice TimeSlice
 			slice.MinTime = math.Float32frombits(uint32(data[1])<<24 | uint32(data[2])<<16 | uint32(data[3])<<8 | uint32(data[4]))
 			slice.MaxTime = math.Float32frombits(uint32(data[5])<<24 | uint32(data[6])<<16 | uint32(data[7])<<8 | uint32(data[8]))
@@ -358,8 +381,9 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 
 	// 索引对象
 	var MediaFileIndex MediaFileIndex
+	MediaFileIndex.VideoSize = common.GetFileSize(tsFilePath)
 	MediaFileIndex.Duration = uint32(indexer.maxTime-indexer.minTime) / 1000
-	MediaFileIndex.BindWidth = uint32(common.GetFileSize(tsFilePath) / uint64(MediaFileIndex.Duration))
+	MediaFileIndex.BindWidth = uint32(MediaFileIndex.VideoSize / uint64(MediaFileIndex.Duration))
 	MediaFileIndex.TimesArray = make([]TimeSlice, 0)
 
 	// 整理切片时间,time单位为秒，改为每秒一个切片

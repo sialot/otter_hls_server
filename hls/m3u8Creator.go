@@ -62,13 +62,10 @@ func GetM3U8(m3u8FileURI string, mainFlag bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	fmt.Println(mediaFileIndex)
-
 	if !mainFlag {
-		return createSubM3u8(mediaFileIndex, m3u8FileURI), nil
+		return createSubM3u8(mediaFileIndex, baseFileURI), nil
 	}
-	return createMainM3u8(mediaFileIndex, m3u8FileURI), nil
+	return createMainM3u8(mediaFileIndex, baseFileURI), nil
 }
 
 // createMainM3u8 创建一级m3u8
@@ -87,9 +84,9 @@ func createMainM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) strin
 	bindWidth := strconv.FormatUint(uint64(mediaFileIndex.BindWidth), 10)
 	resultStr += "#EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=" + bindWidth + "\n"
 
-	// ./video/video_index.M3U8
+	// ./hls_sub/video_index.M3U8
 	// 作为二级m3u8文件"
-	resultStr += serverDomainName + "hls_sub/" + baseFileURI
+	resultStr += serverDomainName + "hls_sub/" + baseFileURI + ".m3u8"
 	return resultStr
 }
 
@@ -122,17 +119,21 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) string
 	resultStr += "#EXT-X-MEDIA-SEQUENCE:0\n"
 	resultStr += "#EXT-X-PLAYLIST-TYPE:VOD\n"
 
-	// 开始分片ts文件路径处理
+	// 获取文件列表
+	videoList := GetVideoList(mediaFileIndex, float64(targetDuration))
+
 	var i int
+	for i=0; i<len(videoList); i++ {
 
-	for i = 0; i < len(mediaFileIndex.TimesArray); i++ {
+		// #EXTINF:6.006,
+		resultStr += "#EXTINF:" + fmt.Sprintf("%.2f", videoList[i].Duration) + "\n"
 
+		// ./video/video_index.M3U8
+		// 作为二级m3u8文件"
+		sequenceStr := strconv.FormatUint(uint64(videoList[i].Sequence), 10)
+		resultStr += serverDomainName + "video/" + baseFileURI + "_" + sequenceStr + ".ts\n"
 	}
 
-	resultStr += ""
-	resultStr += ""
-	resultStr += ""
-	resultStr += ""
-	resultStr += ""
 	return resultStr
 }
+
