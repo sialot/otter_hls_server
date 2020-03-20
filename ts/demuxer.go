@@ -147,6 +147,9 @@ func (d *Demuxer) Init() {
 // DemuxPkg 解封装
 func (d *Demuxer) DemuxPkg(pKgBuf []byte) (*Pes, error) {
 
+	// 新包头记录当前包头的偏移量
+	d.curOffset += uint64(TsPkgSize)
+
 	// check包长度
 	if 188 != len(pKgBuf) {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsPackage length is not 188!")
@@ -575,9 +578,6 @@ func (d *Demuxer) readPesPayload(payload []byte, pHeader *header) (*Pes, error) 
 
 	// ts包中含有新pes包头时
 	if pHeader.payloadUnitStartIndicator == 0x1 {
-
-		// 新包头记录当前包头的偏移量
-		d.curOffset += uint64(TsPkgSize)
 
 		if len(d.bufferMap[pHeader.PID]) > 0 {
 
