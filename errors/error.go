@@ -3,8 +3,11 @@ package errors
 // ErrorCodeDemuxFailed 错误码
 const ErrorCodeDemuxFailed = 0
 
-// ErrorCodeGetIndexFailed 错误吗索引获取失败
+// ErrorCodeGetIndexFailed 错误码索引获取失败
 const ErrorCodeGetIndexFailed = 1
+
+// ErrorCodeGetStreamFailed 错误码视频流获取失败
+const ErrorCodeGetStreamFailed = 2
 
 // Error 异常
 type Error struct {
