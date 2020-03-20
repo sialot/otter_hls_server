@@ -335,8 +335,15 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 
 	defer file.Close()
 
+	// 获取文件状态
+	fileStat, err:= file.Stat()
+	if err != nil {
+		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile not exist!")
+		return nil, err
+	}
+
 	// 预加载ts包字节 切片
-	preLoadData := make([]byte, TsPkgSize*TsReloadNum)
+	preLoadData := make([]byte, min(int64(TsPkgSize*TsReloadNum), fileStat.Size()))
 
 	// 创建解封装器
 	var d Demuxer
@@ -441,4 +448,12 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 	fmt.Printf("Indexing finish\n")
 
 	return &MediaFileIndex, nil
+}
+
+// min
+func min(x int64, y int64) int64 {
+    if x < y {
+        return x
+    }
+    return y
 }
