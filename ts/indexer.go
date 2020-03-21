@@ -3,7 +3,6 @@ package ts
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math"
 	"os"
@@ -11,10 +10,9 @@ import (
 
 	common "../common"
 	errors "../errors"
+	logger "../log"
+	"github.com/sialot/ezlog"
 )
-
-// 索引速度优化、区分文件的索引锁
-// 索引计算更新时间，对比ts文件防止索引失效
 
 // Indexer TS文件索引创建器
 type Indexer struct {
@@ -45,8 +43,16 @@ type TimeSlice struct {
 	StartOffset uint64  // 开始偏移量
 }
 
+// Log 系统日志
+var Log *ezlog.Log
+
 // VERSION 索引版本号
 const VERSION uint8 = 0
+
+// Init 初始化
+func Init() {
+	Log = logger.Log
+}
 
 // GetMediaFileIndex 获取ts文件索引
 func GetMediaFileIndex(indexFilePath string) (*MediaFileIndex, error) {
@@ -59,8 +65,8 @@ func GetMediaFileIndex(indexFilePath string) (*MediaFileIndex, error) {
 
 	// 读取索引文件失败，重新创建索引
 	if err != nil {
-		// fmt.Printf("readIndexFile file failed: %s \n", err.Error())
-		// fmt.Println("now try to build new one.")
+		//Log.Debug("readIndexFile file failed: " + err.Error())
+		Log.Debug("now try to build new one.")
 
 		// 索引器 TODO 需要加锁
 		var indexer Indexer
@@ -68,12 +74,14 @@ func GetMediaFileIndex(indexFilePath string) (*MediaFileIndex, error) {
 
 		// 创建索引失败
 		if err != nil {
-			fmt.Printf("CreateIndex file failed: %s \n", err.Error())
+			Log.Error("CreateIndex file failed: " + err.Error())
 			return nil, err
 		}
 
 		return mediaFileIndex, nil
 	}
+
+	//Log.Debug("Read tsidx success, mediaFileIndex: " + fmt.Sprint(mediaFileIndex))
 
 	return mediaFileIndex, nil
 }
@@ -127,7 +135,7 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, idxFilePath string) error {
 	file, err = os.OpenFile(idxFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 
 	if err != nil {
-		fmt.Println("openfile failed:" + err.Error())
+		Log.Error("openfile failed:" + err.Error())
 		return err
 	}
 
@@ -195,7 +203,7 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, idxFilePath string) error {
 	// ========= 写入帧数据信息 END =========
 	_, err = file.Write(binBuf.Bytes())
 	if err != nil {
-		fmt.Println("write index file failed, ", err.Error())
+		Log.Error("write index file failed" + err.Error())
 		return err
 	}
 
@@ -370,6 +378,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 
 			// 解封装失败 TODO
 			if err != nil {
+				Log.Error("Demux ts file failed: " + err.Error())
 				return nil, err
 			}
 			if pes != nil {

@@ -6,8 +6,13 @@ import (
 	"strings"
 
 	config "../config"
+	logger "../log"
 	ts "../ts"
+	"github.com/sialot/ezlog"
 )
+
+// Log 系统日志
+var Log *ezlog.Log
 
 // LocalDir 文件本地路径
 var LocalDir string
@@ -46,6 +51,8 @@ func Init() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	Log = logger.Log
 }
 
 // GetM3U8 M3U8文件获取
@@ -59,7 +66,9 @@ func GetM3U8(m3u8FileURI string, mainFlag bool) (string, error) {
 
 	// 获取ts索引对象
 	mediaFileIndex, err := ts.GetMediaFileIndex(binaryIndexFilePath)
+
 	if err != nil {
+		Log.Error(err.Error())
 		return "", err
 	}
 	if !mainFlag {
@@ -74,6 +83,8 @@ func GetM3U8(m3u8FileURI string, mainFlag bool) (string, error) {
 // #EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=500000
 func createMainM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) string {
 
+	Log.Debug(">>> GetMainM3u8 Start: " + baseFileURI + ".m3u8")
+
 	// m3u8 文件内容
 	var resultStr = ""
 
@@ -87,6 +98,8 @@ func createMainM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) strin
 	// ./hls_sub/video_index.M3U8
 	// 作为二级m3u8文件"
 	resultStr += serverDomainName + "hls_sub/" + baseFileURI + ".m3u8"
+
+	Log.Debug("<<<GetMainM3u8 End, Result: \n" + resultStr)
 	return resultStr
 }
 
@@ -100,6 +113,8 @@ func createMainM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) strin
 // 2000_vod_00001.ts
 // #EXT-X-ENDLIST
 func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) string {
+
+	Log.Debug(">>> GetSubnM3u8 Start: " + baseFileURI + ".m3u8")
 
 	// m3u8 文件内容
 	var resultStr = ""
@@ -134,5 +149,6 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURI string) string
 		resultStr += serverDomainName + "video/" + baseFileURI + "_" + sequenceStr + ".ts\n"
 	}
 
+	Log.Debug("<<< GetSubM3u8 End")
 	return resultStr
 }

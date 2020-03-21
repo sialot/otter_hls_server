@@ -19,6 +19,7 @@ type VideoInfo struct {
 
 // GetVideoList 计算视频列表
 func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []VideoInfo {
+	Log.Debug("TargetDuration: " + fmt.Sprint(targetDuration))
 
 	var videoList []VideoInfo = make([]VideoInfo, 0)
 	var curSeq int = 0
@@ -67,6 +68,7 @@ func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []V
 	file.Size = mediaFileIndex.VideoSize - file.StartOffset
 	videoList = append(videoList, file)
 
+	Log.Debug("GetVideoList, list size: " + fmt.Sprint(len(videoList)))
 	return videoList
 }
 
@@ -89,7 +91,6 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 
 	// 获取ts二进制索引文件本地路径
 	var binaryIndexFilePath = LocalDir + baseFileURI + ".tsidx"
-	fmt.Println(binaryIndexFilePath)
 
 	// 获取ts索引对象
 	mediaFileIndex, err := ts.GetMediaFileIndex(binaryIndexFilePath)
@@ -111,6 +112,7 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 
 		mid := (right + left) / 2
 		if videoList[mid].Sequence == sequence {
+			Log.Debug("Seek video info:" + fmt.Sprint(videoList[mid]))
 			return &videoList[mid], baseFileURI, nil
 		} else if videoList[mid].Sequence < sequence {
 			left = mid + 1

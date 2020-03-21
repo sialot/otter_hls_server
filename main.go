@@ -10,6 +10,7 @@ import (
 	hls "./hls"
 	logger "./log"
 	routers "./routers"
+	ts "./ts"
 	"github.com/sialot/ezlog"
 )
 
@@ -20,7 +21,9 @@ var Log *ezlog.Log
 func init() {
 	config.InitConfig()
 	logger.InitLog()
+	routers.Init()
 	hls.Init()
+	ts.Init()
 	Log = logger.Log
 }
 
@@ -30,7 +33,6 @@ func init() {
 // 配置文件检测，启动异常处理
 // 日志打印
 // 其他日常处理
-// 支持大写TS
 
 // 服务入口
 func main() {
@@ -41,7 +43,6 @@ func main() {
 	mux.HandleFunc("/hls/", routers.GetMainM3U8)
 	mux.HandleFunc("/hls_sub/", routers.GetSubM3U8)
 	mux.HandleFunc("/video/", routers.GetVideoStream)
-	mux.HandleFunc("/demo/", routers.Demo)
 
 	// 启动服务`
 	port, _ := config.Get("server.port")

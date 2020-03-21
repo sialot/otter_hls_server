@@ -1,17 +1,26 @@
 package routers
 
 import (
+	"io"
 	"net/http"
 	"os"
-	"io"
-	"strconv"
-	"fmt"
 	"path/filepath"
+	"strconv"
 
 	strings "strings"
 
 	hls "../hls"
+	logger "../log"
+	"github.com/sialot/ezlog"
 )
+
+// Log 系统日志
+var Log *ezlog.Log
+
+// Init 初始化
+func Init() {
+	Log = logger.Log
+}
 
 // Welcome 欢迎页
 func Welcome(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +32,7 @@ func Welcome(w http.ResponseWriter, r *http.Request) {
 func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 
 	var url = r.URL.Path
+	Log.Debug(">>>>>>>>>>> Request url:" + url)
 
 	// 非m3u8请求，返回404
 	if !(strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".M3U8")) {
@@ -48,6 +58,7 @@ func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
 
 	var url = r.URL.Path
+	Log.Debug(">>>>>>>>>>> Request url:" + url)
 
 	// 非m3u8请求，返回404
 	if !(strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".M3U8")) {
@@ -69,10 +80,11 @@ func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(m3u8))
 }
 
-// GetVideo 视频文件获取
+// GetVideoStream 视频文件获取
 func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 
 	var url = r.URL.Path
+	Log.Debug(">>>>>>>>>>> Request url:" + url)
 
 	// 非m3u8请求，返回404
 	if !(strings.HasSuffix(url, ".ts")) {
@@ -83,9 +95,9 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 
 	// 获取视频文件信息
 	videoInfo, baseFileURI, err := hls.GetVideoStream(strings.Replace(r.URL.Path, "/video/", "", 1))
-	
+
 	// 打开文件
-	file, err:= os.Open(hls.LocalDir + baseFileURI + ".ts")
+	file, err := os.Open(hls.LocalDir + baseFileURI + ".ts")
 	if err != nil {
 		w.WriteHeader(404)
 		w.Write([]byte("ERROR 404: The file requested is not exist!"))
@@ -94,7 +106,7 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取文件状态
-	fileStat, err:= file.Stat()
+	fileStat, err := file.Stat()
 	if err != nil {
 		w.WriteHeader(404)
 		w.Write([]byte("ERROR 404: The file requested is not exist!"))
@@ -104,7 +116,7 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 
 	_, fileName := filepath.Split(r.URL.Path)
 	w.Header().Set("Last-Modified", fileStat.ModTime().Format(http.TimeFormat))
-	w.Header().Set("Content-Disposition", "attachment; filename=" + fileName)
+	w.Header().Set("Content-Disposition", "attachment; filename="+fileName)
 	w.Header().Set("Content-Type", "video/MP2T")
 	w.Header().Set("Content-Length", strconv.FormatUint(videoInfo.Size, 10))
 
@@ -113,10 +125,8 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	// Stream data out !
 	var tranceSize uint64
 
-	buf := make([]byte, min(1024 * 1024 * 10, fileStat.Size()))
+	buf := make([]byte, min(1024*1024*10, fileStat.Size()))
 	n := 0
-
-	fmt.Printf("buf len: %d \n" , len(buf))
 
 	for err == nil {
 
@@ -131,62 +141,22 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		if tranceSize +  uint64(n) > videoInfo.Size {
-			w.Write(buf[0:videoInfo.Size - tranceSize])
+		if tranceSize+uint64(n) > videoInfo.Size {
+			w.Write(buf[0 : videoInfo.Size-tranceSize])
 			tranceSize += videoInfo.Size - tranceSize
-			fmt.Println("finish!")
 			break
 		} else {
 			w.Write(buf[0:n])
 			tranceSize += uint64(n)
 		}
-
-		fmt.Printf(">>>> tranceSize: %d/%d \n" , tranceSize, videoInfo.Size)
 	}
 
 	file.Close()
-	
-	fmt.Printf(">>>> tranceSize: %d/%d \n" , tranceSize, videoInfo.Size)
-
-	fmt.Println("OK!")
 }
 
-func Demo(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(">>><<<")
-
-	file, _:= os.Open("/Volumes/user/var/media/2.ts")
-
-	defer file.Close()
-
-	fileStat, _ := file.Stat()
-
-	w.Header().Set("Last-Modified", fileStat.ModTime().Format(http.TimeFormat))
-	w.Header().Set("Content-Disposition", "attachment; filename=2.ts")
-	w.Header().Set("Content-Type", "video/MP2T")
-	w.Header().Set("Content-Length", strconv.FormatInt(fileStat.Size(), 10))
-
-	// Stream data out !
-	buf := make([]byte, min(188*1000, fileStat.Size()))
-	n := 0
-
-	fmt.Println(fileStat.Size())
-
-	var err error
-	for err == nil {
-		n, err = file.Read(buf)
-		if err!=nil {
-			fmt.Println(err.Error())
-		}
-
-		w.Write(buf[0:n])
-	}
-
-	fmt.Println("OK!")
-}	
-
 func min(x int64, y int64) int64 {
-    if x < y {
-        return x
-    }
-    return y
+	if x < y {
+		return x
+	}
+	return y
 }

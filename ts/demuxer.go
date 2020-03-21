@@ -263,8 +263,8 @@ func (d *Demuxer) readPayload(pKgBuf []byte, pHeader *header) (*Pes, error) {
 		}
 	}
 
-	// 看是否为PES信息，只解析主视频 和 主音频
-	if int(pHeader.PID) == d.curVideoPID || int(pHeader.PID) == d.curAudioPID {
+	// 切片只需要视频信息
+	if int(pHeader.PID) == d.curVideoPID {
 
 		// 解析PES数据
 		pesResult, err := d.readPesPayload(pKgBuf[start:len(pKgBuf)], pHeader)
@@ -309,17 +309,14 @@ func (d *Demuxer) readpat(payload []byte, pHeader *header) error {
 	// 检测三个固定位
 	if tableID != 0x00 {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "pat parse error!tableID!")
-		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
 	if zero != 0x0 {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "pat parse error!zero!")
-		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
 	if sectionSyntaxIndicator != 0x1 {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "不支持 sectionSyntaxIndicator 为 0!")
-		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
 
@@ -354,7 +351,6 @@ func (d *Demuxer) readpat(payload []byte, pHeader *header) error {
 		if len(loopDataBuffer)%4 != 0 {
 
 			err := errors.NewError(errors.ErrorCodeDemuxFailed, "pat parse error!pat.loopData.length!")
-			fmt.Printf("%s \n", err.ErrMsg)
 			return err
 		}
 
@@ -401,9 +397,9 @@ func (d *Demuxer) readpat(payload []byte, pHeader *header) error {
 		// 获取第一个节目作为解析目标，只解析第一个节目
 		d.curProgramPID = int(d.globalpat.programs[0].PID)
 
-		// fmt.Printf("识别到pat表，PID：%d \n", pHeader.PID)
-		// fmt.Printf("识别到当前Program，PID: %d \n", d.curProgramPID)
-		// fmt.Println(d.globalpat)
+		Log.Debug("识别到pat表，PID：" + fmt.Sprint(pHeader.PID))
+		Log.Debug("识别到当前Program，PID:" + fmt.Sprint(d.curProgramPID))
+		Log.Debug(fmt.Sprint(d.globalpat))
 	}
 
 	return nil
@@ -440,12 +436,10 @@ func (d *Demuxer) readpmt(payload []byte, pHeader *header) error {
 	// 检测固定位
 	if zero != 0x0 {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "pmt parse error!zero!")
-		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
 	if sectionSyntaxIndicator != 0x1 {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "不支持 sectionSyntaxIndicator 为 0!")
-		fmt.Printf("%s \n", err.ErrMsg)
 		return err
 	}
 
@@ -561,10 +555,10 @@ func (d *Demuxer) readpmt(payload []byte, pHeader *header) error {
 			}
 		}
 
-		//fmt.Printf("识别到pmt表，PID：%d, streamcount:%d \n", pHeader.PID, streamCount)
-		//fmt.Printf("识别到当前视频流，PID：%d \n", d.curVideoPID)
-		//fmt.Printf("识别到当前音频流，PID：%d \n", d.curAudioPID)
-		// fmt.Println(d.globalpmt)
+		Log.Debug("识别到pmt表，PID：" + fmt.Sprint(pHeader.PID) + ", streamcount: " + fmt.Sprint(streamCount))
+		Log.Debug("识别到当前视频流，PID：" + fmt.Sprint(d.curVideoPID))
+		Log.Debug("识别到当前音频流，PID：" + fmt.Sprint(d.curAudioPID))
+		Log.Debug(fmt.Sprint(d.globalpmt))
 	}
 
 	return nil
@@ -630,7 +624,6 @@ func (d *Demuxer) readPes(pesBuffer []byte, pHeader *header) (*Pes, error) {
 
 	if tp.pesStartCodePrefix != 0x001 {
 		err := errors.NewError(errors.ErrorCodeDemuxFailed, "pesStartCodePrefix error!")
-		fmt.Printf("%s \n", err.ErrMsg)
 		return nil, err
 	}
 	tp.streamID = pesBuffer[3]
@@ -682,13 +675,6 @@ func (d *Demuxer) readPes(pesBuffer []byte, pHeader *header) (*Pes, error) {
 	tp.ptime = tp.PTS / 90
 	tp.dtime = tp.DTS / 90
 	tp.PID = pHeader.PID
-
-	// PID:513,streamID:192,PESPacketLength:386,PTS:23508000,DTS:0, RealDataLength:378
-	// if d.curVideoPID != int(pHeader.PID) {
-	// 	return nil, nil
-	// }
-	//fmt.Printf("PTS:%d,streamID:%d,PESPacketLength:%d,PTS:%d,DTS:%d,RealDataLength:%d,pkgOffset:%d \n ", pHeader.PID, tp.streamID, tp.PESPacketLength, tp.PTS, tp.DTS, len(pesBuffer), tp.PkgOffset)
-	//fmt.Printf("ptime:%d,dtime:%d,pkgOffset:%d \n", tp.PTS, tp.DTS, tp.PkgOffset)
 	return &tp, nil
 }
 
