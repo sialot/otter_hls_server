@@ -65,7 +65,7 @@ func GetMediaFileIndex(indexFilePath string) (*MediaFileIndex, error) {
 
 	// 读取索引文件失败，重新创建索引
 	if err != nil {
-		//Log.Debug("readIndexFile file failed: " + err.Error())
+		Log.Debug("readIndexFile file failed: " + err.Error())
 		Log.Debug("now try to build new one.")
 
 		// 索引器 TODO 需要加锁
@@ -81,7 +81,7 @@ func GetMediaFileIndex(indexFilePath string) (*MediaFileIndex, error) {
 		return mediaFileIndex, nil
 	}
 
-	//Log.Debug("Read tsidx success, mediaFileIndex: " + fmt.Sprint(mediaFileIndex))
+	Log.Debug("Read tsidx success!")
 
 	return mediaFileIndex, nil
 }
@@ -326,6 +326,48 @@ func readIndexFile(idxFilePath string) (*MediaFileIndex, error) {
 // createIndex Info
 func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error) {
 
+	// 标记当前处理正在被别人抢占
+	var waitProcess bool = false
+
+	// 自旋锁，同文件处理需要等待
+	for {
+
+		// 注册开始处理文件
+		needWait := startProcess(idxFilePath)
+
+		// 当前处理被抢占
+		if !waitProcess && needWait {
+			Log.Debug("Someone is creating index file, need wait. idxFilePath:" + idxFilePath)
+			waitProcess = true
+		}
+
+		// 结束等待
+		if !needWait {
+			break
+		}
+	}
+
+	// 结束处理
+	defer finishProcess(idxFilePath)
+
+	// 轮到我处理，再次尝试读索引
+	if waitProcess {
+		Log.Debug("Wait stop! Retry to read tsidx:" + idxFilePath)
+
+		// 再次尝试读取索引文件
+		pMediaFileIndex, err := readIndexFile(idxFilePath)
+
+		// 获取成功
+		if err == nil {
+			Log.Debug("Read tsidx success")
+			return pMediaFileIndex, nil
+		}
+
+		Log.Debug("Retry failed :" + err.Error())
+	}
+
+	Log.Debug("Start create indexfile")
+
 	// 初始化成员变量
 	indexer.minTime = -1
 	indexer.maxTime = -1
@@ -389,11 +431,11 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 	}
 
 	// 索引对象
-	var MediaFileIndex MediaFileIndex
-	MediaFileIndex.VideoSize = common.GetFileSize(tsFilePath)
-	MediaFileIndex.Duration = uint32(indexer.maxTime-indexer.minTime) / 1000
-	MediaFileIndex.BindWidth = uint32(MediaFileIndex.VideoSize / uint64(MediaFileIndex.Duration))
-	MediaFileIndex.TimesArray = make([]TimeSlice, 0)
+	var mediaFileIndex MediaFileIndex
+	mediaFileIndex.VideoSize = common.GetFileSize(tsFilePath)
+	mediaFileIndex.Duration = uint32(indexer.maxTime-indexer.minTime) / 1000
+	mediaFileIndex.BindWidth = uint32(mediaFileIndex.VideoSize / uint64(mediaFileIndex.Duration))
+	mediaFileIndex.TimesArray = make([]TimeSlice, 0)
 
 	// 整理切片时间,time单位为秒，改为每秒一个切片
 	var i int
@@ -429,7 +471,7 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 		if nextSliceDuration > 1 {
 
 			// 插入分片
-			MediaFileIndex.TimesArray = append(MediaFileIndex.TimesArray, slice)
+			mediaFileIndex.TimesArray = append(mediaFileIndex.TimesArray, slice)
 
 			// 重置分片信息
 			lastSliceMaxTime = slice.MaxTime
@@ -439,15 +481,15 @@ func (indexer *Indexer) createIndex(idxFilePath string) (*MediaFileIndex, error)
 	}
 
 	// 最后一个分片
-	MediaFileIndex.TimesArray = append(MediaFileIndex.TimesArray, slice)
+	mediaFileIndex.TimesArray = append(mediaFileIndex.TimesArray, slice)
 
 	// 写索引文件
-	fileWriteErr := writeIndexFile(&MediaFileIndex, idxFilePath)
+	fileWriteErr := writeIndexFile(&mediaFileIndex, idxFilePath)
 	if fileWriteErr != nil {
 		return nil, fileWriteErr
 	}
 
-	return &MediaFileIndex, nil
+	return &mediaFileIndex, nil
 }
 
 // min
