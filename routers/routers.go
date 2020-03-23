@@ -11,6 +11,7 @@ import (
 
 	hls "../hls"
 	logger "../log"
+	ts "../ts"
 	"github.com/sialot/ezlog"
 )
 
@@ -37,7 +38,7 @@ func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 	// 非m3u8请求，返回404
 	if !(strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".M3U8")) {
 		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: The file requested is not exist!"))
+		w.Write([]byte("ERROR 404: Unsurported file type!"))
 		return
 	}
 
@@ -45,7 +46,7 @@ func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls/", "", 1), true)
 	if err != nil {
 		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: The file requested is not exist!"))
+		w.Write([]byte("ERROR 404: GetM3U8 failed!"))
 		return
 	}
 
@@ -89,7 +90,7 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	// 非m3u8请求，返回404
 	if !(strings.HasSuffix(url, ".ts")) {
 		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: unsupport file type!"))
+		w.Write([]byte("ERROR 404: Unsurported file type!"))
 		return
 	}
 
@@ -136,7 +137,7 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if err != io.EOF {
 				w.WriteHeader(404)
-				w.Write([]byte("ERROR 404: unsupport file type!"))
+				w.Write([]byte("ERROR 404: Unsurported file type!"))
 			}
 			break
 		}
@@ -152,6 +153,34 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	file.Close()
+}
+
+// CreateIndex 主动创建索引
+func CreateIndex(w http.ResponseWriter, r *http.Request){
+
+	var url = r.URL.Path
+	Log.Debug(">>>>>>>>>>> Request url:" + r.URL.Path)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// 非m3u8请求，返回404
+	if !(strings.HasSuffix(url, ".ts") || strings.HasSuffix(url, ".Ts")) {
+		w.Write([]byte("{\"code\":\"-1\",\"msg\":\"Unsurported file type!\"}"))
+		return
+	}
+
+	m3u8FileURI := strings.Replace(r.URL.Path, "/createIndex/", "", 1)
+	baseFileURINoSuffix := strings.TrimSuffix(strings.TrimSuffix(m3u8FileURI, ".ts"), ".Ts")
+	indexFileURI := baseFileURINoSuffix + ".tsidx"
+
+	// 获取m3u8文件
+	err := ts.CreateMediaFileIndex(indexFileURI)
+	if err != nil {
+		w.Write([]byte("{\"code\":\"-1\",\"msg\":\"Create index failed! ,erros: " + err.Error() + "\"}"))
+		return
+	}
+
+	w.Write([]byte("{\"code\":\"1\",\"msg\":\"\"}"))
 }
 
 func min(x int64, y int64) int64 {

@@ -109,6 +109,36 @@ func GetMediaFileIndex(indexFileURI string) (*MediaFileIndex, error) {
 	return mediaFileIndex, nil
 }
 
+
+// CreateMediaFileIndex 获取ts文件索引
+func CreateMediaFileIndex(indexFileURI string) error {
+
+	Log.Debug("CreateMediaFileIndex indexFileURI:" + indexFileURI)
+
+	var err error
+
+	// 尝试读取索引文件
+	_, err = readIndexFile(indexFileURI)
+
+	// 读取索引文件失败，重新创建索引
+	if err != nil {
+		Log.Debug("readIndexFile file failed: " + err.Error())
+		Log.Debug("now try to build new one.")
+
+		var indexer Indexer
+		_, err = indexer.createIndex(indexFileURI)
+
+		// 创建索引失败
+		if err != nil {
+			Log.Error("CreateIndex file failed: " + err.Error())
+			return err
+		}
+	}
+
+	Log.Debug("CreateMediaFileIndex success!")
+	return nil
+}
+
 // feedFrame 输入帧数据
 func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 

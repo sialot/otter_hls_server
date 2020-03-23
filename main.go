@@ -40,9 +40,18 @@ func main() {
 	// 声明路由
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", routers.Welcome)
+
+	// 获取一级m3u8 http://127.0.0.1:4000/hls/1.m3u8
 	mux.HandleFunc("/hls/", routers.GetMainM3U8)
+
+	// 获取二级m3u8 http://127.0.0.1:4000/hls_sub/1.m3u8
 	mux.HandleFunc("/hls_sub/", routers.GetSubM3U8)
+
+	// 获取视频 http://127.0.0.1:4000/video/1_0.ts
 	mux.HandleFunc("/video/", routers.GetVideoStream)
+
+	// 主动创建ts索引 http://127.0.0.1:4000/createIndex/1.ts
+	mux.HandleFunc("/createIndex/", routers.CreateIndex)
 
 	// 启动服务`
 	port, _ := config.Get("server.port")
