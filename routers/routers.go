@@ -94,10 +94,10 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取视频文件信息
-	videoInfo, baseFileURI, err := hls.GetVideoStream(strings.Replace(r.URL.Path, "/video/", "", 1))
+	videoInfo, realTsFileURINoSuffix, err := hls.GetVideoStream(strings.Replace(r.URL.Path, "/video/", "", 1))
 
 	// 打开文件
-	file, err := os.Open(hls.LocalDir + baseFileURI + ".ts")
+	file, err := os.Open(hls.MediaRootPath + realTsFileURINoSuffix + ".ts")
 	if err != nil {
 		w.WriteHeader(404)
 		w.Write([]byte("ERROR 404: The file requested is not exist!"))

@@ -75,9 +75,11 @@ func GetVideoList(mediaFileIndex *ts.MediaFileIndex, targetDuration float64) []V
 // GetVideoStream 获取视频流
 func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 
+	Log.Debug("GetVideoStream, videoFileURI:" + videoFileURI)
+
 	// 无后缀的基本文件路径
-	baseVideoFileURI := strings.TrimSuffix(strings.TrimSuffix(videoFileURI, ".ts"), ".TS")
-	sequenceStr := baseVideoFileURI[strings.LastIndex(baseVideoFileURI, "_")+1 : len(baseVideoFileURI)]
+	videoFileURINoSuffix := strings.TrimSuffix(strings.TrimSuffix(videoFileURI, ".ts"), ".TS")
+	sequenceStr := videoFileURINoSuffix[strings.LastIndex(videoFileURINoSuffix, "_")+1 : len(videoFileURINoSuffix)]
 
 	// 获取视频分片序号
 	sequence, err := strconv.Atoi(sequenceStr)
@@ -87,13 +89,13 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 	}
 
 	// 无后缀的基本文件路径
-	baseFileURI := baseVideoFileURI[0:strings.LastIndex(baseVideoFileURI, "_")]
+	realTsFileURINoSuffix := videoFileURINoSuffix[0:strings.LastIndex(videoFileURINoSuffix, "_")]
 
-	// 获取ts二进制索引文件本地路径
-	var binaryIndexFilePath = LocalDir + baseFileURI + ".tsidx"
+	var indexFileURI = realTsFileURINoSuffix + ".tsidx"
+	Log.Debug("GetVideoStream, indexFileURI:" + indexFileURI)
 
 	// 获取ts索引对象
-	mediaFileIndex, err := ts.GetMediaFileIndex(binaryIndexFilePath)
+	mediaFileIndex, err := ts.GetMediaFileIndex(indexFileURI)
 	if err != nil {
 		return nil, "", err
 	}
@@ -113,7 +115,7 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 		mid := (right + left) / 2
 		if videoList[mid].Sequence == sequence {
 			Log.Debug("Seek video info:" + fmt.Sprint(videoList[mid]))
-			return &videoList[mid], baseFileURI, nil
+			return &videoList[mid], realTsFileURINoSuffix, nil
 		} else if videoList[mid].Sequence < sequence {
 			left = mid + 1
 		} else if videoList[mid].Sequence > sequence {
