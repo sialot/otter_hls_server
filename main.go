@@ -59,7 +59,7 @@ func main() {
 	svr := http.Server{
 		Addr:         ":" + port,
 		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
+		WriteTimeout: 0,
 		Handler:      mux,
 	}
 
