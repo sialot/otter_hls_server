@@ -51,6 +51,7 @@ func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 返回m3u8文件内容
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/x-mpegURL")
 	w.Write([]byte(m3u8))
 }
@@ -77,6 +78,7 @@ func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 返回m3u8文件内容
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/x-mpegURL")
 	w.Write([]byte(m3u8))
 }
@@ -116,6 +118,7 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, fileName := filepath.Split(r.URL.Path)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Last-Modified", fileStat.ModTime().Format(http.TimeFormat))
 	w.Header().Set("Content-Disposition", "attachment; filename="+fileName)
 	w.Header().Set("Content-Type", "video/MP2T")
