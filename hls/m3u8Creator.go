@@ -158,6 +158,9 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix string
 		resultStr += serverDomainName + "video/" + baseFileURINoSuffix + "_" + sequenceStr + ".ts\n"
 	}
 
+	// #EXT-X-ENDLIST
+	resultStr += "#EXT-X-ENDLIST"
+
 	Log.Debug("<<< GetSubM3u8 End")
 	return resultStr
 }
