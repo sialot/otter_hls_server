@@ -10,3 +10,4 @@ log:
   syslog:
     filename: /Volumes/user/var/log/otter_hls_server/system
     pattern: -2006-01-02
+    level: info
