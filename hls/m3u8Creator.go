@@ -21,10 +21,13 @@ var MediaRootPath string
 var IndexRootPath string
 
 // 服务器域名前缀
-var serverDomainName string
+var ServerDomainName string
+
+// 服务端口
+var Port string
 
 // m3u8单片最大时长
-var targetDuration int
+var TargetDuration int
 
 // Init 初始化
 func Init() {
@@ -43,11 +46,18 @@ func Init() {
 		panic(err.Error())
 	}
 
-	serverDomainName, err = config.SysConfig.Get("server.domainName")
+	ServerDomainName, err = config.SysConfig.Get("server.domainName")
 
 	if err != nil {
 		panic(err.Error())
 	}
+
+	Port, err = config.SysConfig.Get("server.port")
+
+	if err != nil {
+		panic(err.Error())
+	}
+
 
 	var targetDurationStr string
 	targetDurationStr, err = config.SysConfig.Get("m3u8.target_duration")
@@ -56,7 +66,7 @@ func Init() {
 		panic(err.Error())
 	}
 
-	targetDuration, err = strconv.Atoi(targetDurationStr)
+	TargetDuration, err = strconv.Atoi(targetDurationStr)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -106,7 +116,7 @@ func createMainM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix strin
 
 	// ./hls_sub/video_index.M3U8
 	// 作为二级m3u8文件"
-	resultStr += serverDomainName + "hls_sub/" + baseFileURINoSuffix + ".m3u8"
+	resultStr += "http://" + ServerDomainName + ":" + Port + "/hls_sub/" + baseFileURINoSuffix + ".m3u8"
 
 	Log.Debug("<<<GetMainM3u8 End, Result: \n" + resultStr)
 	return resultStr
@@ -135,7 +145,7 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix string
 	resultStr += "#EXT-X-VERSION:4 \n"
 
 	// #EXT-X-TARGETDURATION:{M3U8_TARGET_DURATION}
-	targetDurationStr := strconv.FormatUint(uint64(targetDuration), 10)
+	targetDurationStr := strconv.FormatUint(uint64(TargetDuration), 10)
 	resultStr += "#EXT-X-TARGETDURATION:" + targetDurationStr + "\n"
 
 	// #EXT-X-MEDIA-SEQUENCE:0
@@ -144,7 +154,7 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix string
 	resultStr += "#EXT-X-PLAYLIST-TYPE:VOD\n"
 
 	// 获取文件列表
-	videoList := GetVideoList(mediaFileIndex, float64(targetDuration))
+	videoList := GetVideoList(mediaFileIndex, float64(TargetDuration))
 
 	var i int
 	for i = 0; i < len(videoList); i++ {
@@ -155,7 +165,7 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix string
 		// ./video/video_index.M3U8
 		// 作为二级m3u8文件"
 		sequenceStr := strconv.FormatUint(uint64(videoList[i].Sequence), 10)
-		resultStr += serverDomainName + "video/" + baseFileURINoSuffix + "_" + sequenceStr + ".ts\n"
+		resultStr += "http://" + ServerDomainName + ":" + Port + "/video/" + baseFileURINoSuffix + "_" + sequenceStr + ".ts\n"
 	}
 
 	// #EXT-X-ENDLIST

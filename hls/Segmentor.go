@@ -101,7 +101,7 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 	}
 
 	// 获取文件列表
-	videoList := GetVideoList(mediaFileIndex, float64(targetDuration))
+	videoList := GetVideoList(mediaFileIndex, float64(TargetDuration))
 
 	// 找文件
 	var left int = 0
