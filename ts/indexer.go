@@ -491,6 +491,12 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 		// 解封装
 		var i int
 		for i = 0; i < TsReloadNum; i++ {
+			
+			if (len(preLoadData) - i*188) < 188   {
+				Log.Debug("Wrong ts file length!")
+				continue
+			}
+
 			var pKgBuf []byte = preLoadData[i*188 : (i*188 + 188)]
 			pes, err := d.DemuxPkg(pKgBuf)
 
