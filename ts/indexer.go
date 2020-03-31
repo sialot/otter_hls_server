@@ -494,7 +494,7 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 			
 			if (len(preLoadData) - i*188) < 188   {
 				Log.Debug("Wrong ts file length!")
-				continue
+				break
 			}
 
 			var pKgBuf []byte = preLoadData[i*188 : (i*188 + 188)]
