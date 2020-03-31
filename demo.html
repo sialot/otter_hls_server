@@ -1,0 +1,33 @@
+<html>
+    <header>
+        <style> 
+            .video{
+                object-fit:fill;
+                width:640px;
+                height:360px;
+            }
+            </style>
+            <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+            <script>
+            
+            function loadMedia(){
+              var video = document.getElementById('video');
+              if (Hls.isSupported()) {
+                var config = {
+                  debug: true,
+                  maxBufferLength: 10,
+                  maxMaxBufferLength: 300,
+                  maxBufferSize: 10*1000*1000,
+                  maxBufferHole: 0.5
+                };
+                var hls = new Hls(config);
+                hls.loadSource('http://127.0.0.1:4000/hls/1.m3u8');
+                hls.attachMedia(video);
+              }                
+            }
+        </script>
+    </header>
+    <body onload="loadMedia()">
+        <video class="video" id="video" controls></video>
+    </body>
+</html>
