@@ -29,7 +29,7 @@ func InitLog() {
 		Filename:   fileName,
 		Pattern:    pattern,
 		BufferSize: 0,
-		LogLevel: l}
+		LogLevel:   l}
 }
 
 // FlushLog 清空缓冲区
