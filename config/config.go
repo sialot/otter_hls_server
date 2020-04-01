@@ -31,7 +31,4 @@ func InitConfig() {
 	loadConfig(configFilePath)
 }
 
-// Get 获取配置
-func Get(key string) (string, error) {
-	return SysConfig.Get(key)
-}
+//

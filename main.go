@@ -54,7 +54,7 @@ func main() {
 	mux.HandleFunc("/createIndex/", routers.CreateIndex)
 
 	// 启动服务`
-	port, _ := config.Get("server.port")
+	port, _ := config.SysConfig.Get("server.port")
 
 	svr := http.Server{
 		Addr:         ":" + port,
