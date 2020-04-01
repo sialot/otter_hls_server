@@ -17,16 +17,16 @@ var Log *ezlog.Log
 // MediaRootPath 文件本地路径
 var MediaRootPath string
 
-// 索引文件 本地路径
+// IndexRootPath 索引文件 本地路径
 var IndexRootPath string
 
-// 服务器域名前缀
+// ServerDomainName 服务器域名前缀
 var ServerDomainName string
 
-// 服务端口
+// Port 服务端口
 var Port string
 
-// m3u8单片最大时长
+// TargetDuration m3u8单片最大时长
 var TargetDuration int
 
 // Init 初始化
@@ -57,7 +57,6 @@ func Init() {
 	if err != nil {
 		panic(err.Error())
 	}
-
 
 	var targetDurationStr string
 	targetDurationStr, err = config.SysConfig.Get("m3u8.target_duration")
