@@ -1,0 +1,17 @@
+server:
+  port: 4000
+  domain_name: 192.168.18.201
+m3u8:
+  target_duration: 10
+log:
+  syslog:
+    filename: /Volumes/user/var/log/otter_hls_server/system
+    pattern: -2006-01-02
+    level: info
+path:
+  index_root_path: /index/
+  media_root_path:
+    - local_dir: /Volumes/user/var/media
+      service_name: t
+    - local_dir: /Volumse/user/var/media1
+      service_name: k
