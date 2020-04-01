@@ -6,11 +6,11 @@ import (
 	"io"
 	"math"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 
-	config "../config"
 	common "../common"
+	config "../config"
 	errors "../errors"
 	logger "../log"
 	"github.com/sialot/ezlog"
@@ -48,7 +48,7 @@ type TimeSlice struct {
 // MediaRootPath 文件本地路径
 var MediaRootPath string
 
-// 索引文件 本地路径
+// IndexRootPath 索引文件 本地路径
 var IndexRootPath string
 
 // Log 系统日志
@@ -108,7 +108,6 @@ func GetMediaFileIndex(indexFileURI string) (*MediaFileIndex, error) {
 
 	return mediaFileIndex, nil
 }
-
 
 // CreateMediaFileIndex 获取ts文件索引
 func CreateMediaFileIndex(indexFileURI string) error {
@@ -196,11 +195,11 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, indexFileURI string) error 
 
 		Log.Debug("index dir not exist, try to create one")
 
-		err = os.MkdirAll(indexFileDirPath,os.ModePerm)
+		err = os.MkdirAll(indexFileDirPath, os.ModePerm)
 		if err != nil {
 			Log.Error("create index dir failed:" + err.Error())
 			return err
- 	  	}
+		}
 	}
 
 	// 索引文件
@@ -491,8 +490,8 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 		// 解封装
 		var i int
 		for i = 0; i < TsReloadNum; i++ {
-			
-			if (len(preLoadData) - i*188) < 188   {
+
+			if (len(preLoadData) - i*188) < 188 {
 				Log.Debug("Wrong ts file length!")
 				break
 			}
