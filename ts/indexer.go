@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	common "../common"
-	config "../config"
 	errors "../errors"
 	logger "../log"
+	path "../path"
 	"github.com/sialot/ezlog"
 )
 
@@ -45,12 +45,6 @@ type TimeSlice struct {
 	StartOffset uint64  // 开始偏移量
 }
 
-// MediaRootPath 文件本地路径
-var MediaRootPath string
-
-// IndexRootPath 索引文件 本地路径
-var IndexRootPath string
-
 // Log 系统日志
 var Log *ezlog.Log
 
@@ -59,41 +53,38 @@ const VERSION uint8 = 0
 
 // Init 初始化
 func Init() {
-
-	// 提取本地文件路径
-	var err error
-	MediaRootPath, err = config.SysConfig.Get("media.mediaRootPath")
-
-	if err != nil {
-		panic(err.Error())
-	}
-
-	IndexRootPath, err = config.SysConfig.Get("media.indexRootPath")
-
-	if err != nil {
-		panic(err.Error())
-	}
-
 	Log = logger.Log
 }
 
 // GetMediaFileIndex 获取ts文件索引
-func GetMediaFileIndex(indexFileURI string) (*MediaFileIndex, error) {
+//  baseFileURINoSuffix 不带后缀的请求路径
+func GetMediaFileIndex(baseFileURINoSuffix string) (*MediaFileIndex, error) {
+
+	Log.Debug("GetMediaFileIndex baseFileURINoSuffix:" + baseFileURINoSuffix)
+
+	if strings.Index(baseFileURINoSuffix, "/") < 0 {
+		Log.Error("Can't get group_name from url!")
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed, can't get group_name from url, read index file failed")
+		return nil, err
+	}
 
 	var mediaFileIndex *MediaFileIndex
 	var err error
 
+	// 获得索引文件本地路径
+	var indexFileLocalPath = getIndexFilePath(baseFileURINoSuffix)
+
 	// 尝试读取索引文件
-	mediaFileIndex, err = readIndexFile(indexFileURI)
+	mediaFileIndex, err = readIndexFile(indexFileLocalPath)
 
 	// 读取索引文件失败，重新创建索引
 	if err != nil {
-		Log.Debug("readIndexFile file failed: " + err.Error())
-		Log.Debug("now try to build new one.")
+		Log.Error("ReadIndexFile file failed: " + err.Error())
+		Log.Debug("Now try to build new one.")
 
 		// 索引器 TODO 需要加锁
 		var indexer Indexer
-		mediaFileIndex, err = indexer.createIndex(indexFileURI)
+		mediaFileIndex, err = indexer.createIndexFile(indexFileLocalPath)
 
 		// 创建索引失败
 		if err != nil {
@@ -104,28 +95,32 @@ func GetMediaFileIndex(indexFileURI string) (*MediaFileIndex, error) {
 		return mediaFileIndex, nil
 	}
 
-	Log.Debug("Read tsidx success!")
+	Log.Debug("GetMediaFileIndex success!")
 
 	return mediaFileIndex, nil
 }
 
-// CreateMediaFileIndex 获取ts文件索引
-func CreateMediaFileIndex(indexFileURI string) error {
+// CreateMediaFileIndex 手动创建ts文件索引
+//  baseFileURINoSuffix 不带后缀的请求路径
+func CreateMediaFileIndex(baseFileURINoSuffix string) error {
 
-	Log.Debug("CreateMediaFileIndex indexFileURI:" + indexFileURI)
+	Log.Debug("CreateMediaFileIndex baseFileURINoSuffix:" + baseFileURINoSuffix)
 
 	var err error
 
+	// 获得索引文件本地路径
+	var indexFileLocalPath = getIndexFilePath(baseFileURINoSuffix)
+
 	// 尝试读取索引文件
-	_, err = readIndexFile(indexFileURI)
+	_, err = readIndexFile(indexFileLocalPath)
 
 	// 读取索引文件失败，重新创建索引
 	if err != nil {
-		Log.Debug("readIndexFile file failed: " + err.Error())
-		Log.Debug("now try to build new one.")
+		Log.Error("ReadIndexFile file failed: " + err.Error())
+		Log.Debug("Now try to build new one.")
 
 		var indexer Indexer
-		_, err = indexer.createIndex(indexFileURI)
+		_, err = indexer.createIndexFile(indexFileLocalPath)
 
 		// 创建索引失败
 		if err != nil {
@@ -139,6 +134,8 @@ func CreateMediaFileIndex(indexFileURI string) error {
 }
 
 // feedFrame 输入帧数据
+// 	pts 显示时间戳
+// 	offset 帧相对媒体文件其实位置的偏移量
 func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 
 	if indexer.minTime < 0 {
@@ -160,7 +157,9 @@ func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 	indexer.frameArray = append(indexer.frameArray, f)
 }
 
-// writeIndexFile 将索引文件写入硬盘
+// writeFile 将索引文件写入硬盘
+// 	pMediaFileIndex 索引数据
+//	indexFileLocalPath 索引文件本地路径
 //
 // 索引文件构成
 // 每个包 144bit
@@ -180,34 +179,31 @@ func (indexer *Indexer) feedFrame(pts int64, offset uint64) {
 // mintime		|最小帧时间（单位秒）(32bit)
 // maxtime		|最大帧时间（单位秒）(32bit)
 // startOffset	|分片偏移量(64bit)
-func writeIndexFile(pMediaFileIndex *MediaFileIndex, indexFileURI string) error {
+func writeFile(pMediaFileIndex *MediaFileIndex, indexFileLocalPath string) error {
 
 	var err error
 
-	// 索引文件路径
-	var indexFilePath = IndexRootPath + indexFileURI
-
 	// 父目录
-	indexFileDirPath, _ := filepath.Split(indexFilePath)
+	indexFileDirPath, _ := filepath.Split(indexFileLocalPath)
 
 	// 父文件夹不存在，创建文件夹
 	if !common.FileExists(indexFileDirPath) {
 
-		Log.Debug("index dir not exist, try to create one")
+		Log.Debug("Index dir not exist, try to create one")
 
 		err = os.MkdirAll(indexFileDirPath, os.ModePerm)
 		if err != nil {
-			Log.Error("create index dir failed:" + err.Error())
+			Log.Error("Create index dir failed:" + err.Error())
 			return err
 		}
 	}
 
 	// 索引文件
 	var file *os.File
-	file, err = os.OpenFile(indexFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	file, err = os.OpenFile(indexFileLocalPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 
 	if err != nil {
-		Log.Error("openfile failed:" + err.Error())
+		Log.Error("Openfile failed:" + err.Error())
 		return err
 	}
 
@@ -275,7 +271,7 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, indexFileURI string) error 
 	// ========= 写入帧数据信息 END =========
 	_, err = file.Write(binBuf.Bytes())
 	if err != nil {
-		Log.Error("write index file failed" + err.Error())
+		Log.Error("Write index file failed" + err.Error())
 		return err
 	}
 
@@ -283,7 +279,8 @@ func writeIndexFile(pMediaFileIndex *MediaFileIndex, indexFileURI string) error 
 }
 
 // readIndexFile 从磁盘读取索引文件
-func readIndexFile(indexFileURI string) (*MediaFileIndex, error) {
+// 	indexFileLocalPath 索引文件本地路径
+func readIndexFile(indexFileLocalPath string) (*MediaFileIndex, error) {
 
 	var file *os.File
 	var err error
@@ -291,9 +288,8 @@ func readIndexFile(indexFileURI string) (*MediaFileIndex, error) {
 	MediaFileIndex.TimesArray = make([]TimeSlice, 0)
 
 	// 打开文件
-	file, err = os.Open(IndexRootPath + indexFileURI)
+	file, err = os.Open(indexFileLocalPath)
 	if err != nil {
-		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed, can't open file!")
 		return nil, err
 	}
 	defer file.Close()
@@ -301,33 +297,42 @@ func readIndexFile(indexFileURI string) (*MediaFileIndex, error) {
 	// 获取索引文件大小和修改时间
 	fi, err := file.Stat()
 	if err != nil {
-		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file getSize failed!")
+		Log.Error("ReadIndexFile file failed: " + err.Error())
 		return nil, err
 	}
 
 	// 大小为零认为是错误
 	if fi.Size() == 0 {
+		Log.Error("Ts index file read failed, empty file: " + err.Error())
 		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed, empty file!")
 		return nil, err
 	}
 
 	// 获取ts文件修改时间
-	var tsFilePath = MediaRootPath + strings.TrimSuffix(indexFileURI, ".tsidx") + ".ts"
-	tsFile, err := os.Open(tsFilePath)
+	tsFilePath, err := getMediaFilePathFromIndexFilePath(indexFileLocalPath)
 	if err != nil {
-		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "TsFile not exist!")
+		Log.Error("Ts file read failed: " + err.Error())
 		return nil, err
 	}
 
+	// 打开ts文件
+	tsFile, err := os.Open(tsFilePath)
+	if err != nil {
+		Log.Error("Ts file read failed: " + err.Error())
+		return nil, err
+	}
+
+	// 获取ts文件信息
 	tsfi, err := tsFile.Stat()
 	if err != nil {
-		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file getSize failed!")
+		Log.Error("Ts file read failed: " + err.Error())
 		return nil, err
 	}
 
 	// 媒体文件被修改
 	if tsfi.ModTime().Unix() > fi.ModTime().Unix() {
 		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file is out of data!")
+		Log.Error("Ts index file is out of data: " + err.Error())
 		return nil, err
 	}
 
@@ -343,7 +348,7 @@ func readIndexFile(indexFileURI string) (*MediaFileIndex, error) {
 		// 读取文件失败
 		if err != nil {
 			if err != io.EOF {
-				err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file read failed!")
+				Log.Error("Ts index file read failed: " + err.Error())
 				return nil, err
 			}
 			break
@@ -353,6 +358,7 @@ func readIndexFile(indexFileURI string) (*MediaFileIndex, error) {
 		var syncData uint8 = data[0] >> 4
 		if syncData != 0x0f {
 			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file syncData error!")
+			Log.Error("Ts index file read failed! Ts index file syncData error: " + err.Error())
 			return nil, err
 		}
 
@@ -360,6 +366,7 @@ func readIndexFile(indexFileURI string) (*MediaFileIndex, error) {
 		var endSyncData uint16 = uint16(data[17])
 		if endSyncData != 0xFF {
 			err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file endSyncData error!")
+			Log.Error("Ts index file read failed! Ts index file endSyncData error: " + err.Error())
 			return nil, err
 		}
 
@@ -370,6 +377,7 @@ func readIndexFile(indexFileURI string) (*MediaFileIndex, error) {
 			version := data[1]
 			if version != VERSION {
 				err := errors.NewError(errors.ErrorCodeGetIndexFailed, "Ts index file version error!")
+				Log.Error("Ts index file read failed! Ts index file version error: " + err.Error())
 				return nil, err
 			}
 
@@ -395,8 +403,9 @@ func readIndexFile(indexFileURI string) (*MediaFileIndex, error) {
 	return &MediaFileIndex, nil
 }
 
-// createIndex Info
-func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error) {
+// createIndexFile 创建索引文件
+//	indexFileLocalPath 索引文件本地路径
+func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIndex, error) {
 
 	// 标记当前处理正在被别人抢占
 	var waitProcess bool = false
@@ -405,11 +414,11 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 	for {
 
 		// 注册开始处理文件
-		needWait := startProcess(indexFileURI)
+		needWait := startProcess(indexFileLocalPath)
 
 		// 当前处理被抢占
 		if !waitProcess && needWait {
-			Log.Debug("Someone is creating index file, need wait. indexFileURI:" + indexFileURI)
+			Log.Debug("Someone is creating index file, need wait. indexFileLocalPath:" + indexFileLocalPath)
 			waitProcess = true
 		}
 
@@ -420,14 +429,14 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 	}
 
 	// 结束处理
-	defer finishProcess(indexFileURI)
+	defer finishProcess(indexFileLocalPath)
 
 	// 轮到我处理，再次尝试读索引
 	if waitProcess {
-		Log.Debug("Wait stop! Retry to read tsidx:" + indexFileURI)
+		Log.Debug("Wait stop! Retry to read index, indexFileLocalPath:" + indexFileLocalPath)
 
 		// 再次尝试读取索引文件
-		pMediaFileIndex, err := readIndexFile(IndexRootPath + indexFileURI)
+		pMediaFileIndex, err := readIndexFile(indexFileLocalPath)
 
 		// 获取成功
 		if err == nil {
@@ -435,7 +444,7 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 			return pMediaFileIndex, nil
 		}
 
-		Log.Debug("Retry failed :" + err.Error())
+		Log.Debug("Retry failed: " + err.Error())
 	}
 
 	Log.Debug("Start create indexfile")
@@ -445,14 +454,18 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 	indexer.maxTime = -1
 	indexer.frameArray = make([]Frame, 0)
 
-	// 打开ts文件
-	var tsFilePath = MediaRootPath + strings.TrimSuffix(indexFileURI, ".tsidx") + ".ts"
+	// 获取索引对应媒体文件路径
+	tsFilePath, err := getMediaFilePathFromIndexFilePath(indexFileLocalPath)
+	if err != nil {
+		Log.Error("Open ts file failed: " + err.Error())
+		return nil, err
+	}
 
-	Log.Debug("open ts file:" + tsFilePath)
+	Log.Debug("Open ts file: " + tsFilePath)
 
 	file, err := os.Open(tsFilePath)
 	if err != nil {
-		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile not exist!")
+		Log.Error("Open ts file failed: " + err.Error())
 		return nil, err
 	}
 
@@ -461,7 +474,7 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 	// 获取文件状态
 	fileStat, err := file.Stat()
 	if err != nil {
-		err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile not exist!")
+		Log.Error("Open ts file failed: " + err.Error())
 		return nil, err
 	}
 
@@ -481,7 +494,7 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 		// 读取文件失败
 		if err != nil {
 			if err != io.EOF {
-				err := errors.NewError(errors.ErrorCodeDemuxFailed, "TsFile read failed!")
+				Log.Error("Open ts file failed: " + err.Error())
 				return nil, err
 			}
 			break
@@ -565,12 +578,43 @@ func (indexer *Indexer) createIndex(indexFileURI string) (*MediaFileIndex, error
 	mediaFileIndex.TimesArray = append(mediaFileIndex.TimesArray, slice)
 
 	// 写索引文件
-	fileWriteErr := writeIndexFile(&mediaFileIndex, indexFileURI)
+	fileWriteErr := writeFile(&mediaFileIndex, indexFileLocalPath)
 	if fileWriteErr != nil {
 		return nil, fileWriteErr
 	}
 
 	return &mediaFileIndex, nil
+}
+
+// getIndexFilePath 根据索引文件url计算真正的索引路径
+func getIndexFilePath(baseFileURINoSuffix string) string{
+	Log.Debug("getIndexFilePath start, baseFileURINoSuffix:" + baseFileURINoSuffix)
+	indexFileLocalPath := path.IndexFileFolder + baseFileURINoSuffix + ".tsidx"
+	Log.Debug("getIndexFilePath finish, indexFileLocalPath:" + indexFileLocalPath)
+	return indexFileLocalPath
+}
+
+// getMediaFilePathFromIndexFilePath 根据索引文件计算真正的媒体路径
+func getMediaFilePathFromIndexFilePath(indexFileLocalPath string) (string, error){
+	Log.Debug("getMediaFilePathFromIndexFilePath start, indexFileLocalPath:" + indexFileLocalPath)
+
+	mediaFileURI := strings.TrimSuffix(strings.Replace(indexFileLocalPath, path.IndexFileFolder, "", 1), ".tsidx") + ".ts"
+
+	groupName := mediaFileURI[0: strings.Index(mediaFileURI, "/")]
+
+	fileURI := mediaFileURI[strings.Index(mediaFileURI, "/") + 1: len(mediaFileURI)]
+
+	Log.Debug("groupName:" + groupName + ", fileURI:" + fileURI)
+
+	if _, ok := path.MediaFileFolders[groupName]; !ok {
+		Log.Error("Can't get group_info from config!")
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "getMediaFilePathFromIndexFilePath failed, can't get group_info from config.")
+		return "", err
+	}
+
+	mediaFileLocalPath := path.MediaFileFolders[groupName].LocalPath + fileURI
+	Log.Debug("getMediaFilePathFromIndexFilePath finish, mediaFileLocalPath:" + mediaFileLocalPath)
+	return mediaFileLocalPath, nil
 }
 
 // min

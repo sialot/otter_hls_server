@@ -14,12 +14,6 @@ import (
 // Log 系统日志
 var Log *ezlog.Log
 
-// MediaRootPath 文件本地路径
-var MediaRootPath string
-
-// IndexRootPath 索引文件 本地路径
-var IndexRootPath string
-
 // ServerDomainName 服务器域名前缀
 var ServerDomainName string
 
@@ -34,17 +28,6 @@ func Init() {
 
 	// 提取本地文件路径
 	var err error
-	MediaRootPath, err = config.SysConfig.Get("media.mediaRootPath")
-
-	if err != nil {
-		panic(err.Error())
-	}
-
-	IndexRootPath, err = config.SysConfig.Get("media.indexRootPath")
-
-	if err != nil {
-		panic(err.Error())
-	}
 
 	ServerDomainName, err = config.SysConfig.Get("server.domainName")
 
@@ -79,11 +62,8 @@ func GetM3U8(m3u8FileURI string, mainFlag bool) (string, error) {
 	// 无后缀的基本文件路径
 	var baseFileURINoSuffix = strings.TrimSuffix(strings.TrimSuffix(m3u8FileURI, ".m3u8"), ".M3U8")
 
-	// 获取ts二进制索引文件本地路径
-	var indexFileURI = baseFileURINoSuffix + ".tsidx"
-
 	// 获取ts索引对象
-	mediaFileIndex, err := ts.GetMediaFileIndex(indexFileURI)
+	mediaFileIndex, err := ts.GetMediaFileIndex(baseFileURINoSuffix)
 
 	if err != nil {
 		Log.Error(err.Error())

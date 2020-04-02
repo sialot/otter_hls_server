@@ -10,6 +10,7 @@ import (
 	hls "./hls"
 	logger "./log"
 	routers "./routers"
+	path "./path"
 	ts "./ts"
 	"github.com/sialot/ezlog"
 )
@@ -21,6 +22,7 @@ var Log *ezlog.Log
 func init() {
 	config.InitConfig()
 	logger.InitLog()
+	path.LoadPath()
 	routers.Init()
 	hls.Init()
 	ts.Init()

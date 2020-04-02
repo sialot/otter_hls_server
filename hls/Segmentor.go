@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	errors "../errors"
+	path "../path"
 	ts "../ts"
 )
 
@@ -77,8 +78,19 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 
 	Log.Debug("GetVideoStream, videoFileURI:" + videoFileURI)
 
+	if strings.Index(videoFileURI, "/") < 0 {
+		Log.Error("Can't get group_name from url!")
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "GetVideoStream failed, can't get group_name from url, read index file failed")
+		return nil, "", err
+	}
+
+	// 真实媒体路径
+	var realMediaLocalPath string
+
 	// 无后缀的基本文件路径
 	videoFileURINoSuffix := strings.TrimSuffix(strings.TrimSuffix(videoFileURI, ".ts"), ".TS")
+
+	// 获取视频序号
 	sequenceStr := videoFileURINoSuffix[strings.LastIndex(videoFileURINoSuffix, "_")+1 : len(videoFileURINoSuffix)]
 
 	// 获取视频分片序号
@@ -88,14 +100,21 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 		return nil, "", err
 	}
 
-	// 无后缀的基本文件路径
-	realTsFileURINoSuffix := videoFileURINoSuffix[0:strings.LastIndex(videoFileURINoSuffix, "_")]
+	Log.Debug("GetVideoStream, sequenceStr:" + sequenceStr)
 
-	var indexFileURI = realTsFileURINoSuffix + ".tsidx"
-	Log.Debug("GetVideoStream, indexFileURI:" + indexFileURI)
+	// 组名
+	groupName := videoFileURINoSuffix[0: strings.Index(videoFileURINoSuffix, "/")]
+
+	// 视频相对路径
+	mediaFileURI := videoFileURINoSuffix[strings.Index(videoFileURINoSuffix, "/") + 1: len(videoFileURINoSuffix)]
+
+	// 真实媒体文件路径
+	realMediaLocalPath = path.MediaFileFolders[groupName].LocalPath + mediaFileURI[0:strings.LastIndex(mediaFileURI, "_")] + ".ts"
+	Log.Debug("GetVideoStream, realMediaLocalPath:" + realMediaLocalPath)
 
 	// 获取ts索引对象
-	mediaFileIndex, err := ts.GetMediaFileIndex(indexFileURI)
+	baseFileURINoSuffix := videoFileURINoSuffix[0:strings.LastIndex(videoFileURINoSuffix, "_")]
+	mediaFileIndex, err := ts.GetMediaFileIndex(baseFileURINoSuffix)
 	if err != nil {
 		return nil, "", err
 	}
@@ -115,7 +134,7 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 		mid := (right + left) / 2
 		if videoList[mid].Sequence == sequence {
 			Log.Debug("Seek video info:" + fmt.Sprint(videoList[mid]))
-			return &videoList[mid], realTsFileURINoSuffix, nil
+			return &videoList[mid], realMediaLocalPath, nil
 		} else if videoList[mid].Sequence < sequence {
 			left = mid + 1
 		} else if videoList[mid].Sequence > sequence {

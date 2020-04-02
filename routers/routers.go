@@ -46,7 +46,8 @@ func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls/", "", 1), true)
 	if err != nil {
 		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: GetM3U8 failed!"))
+		w.Write([]byte("ERROR 404: GetM3U8 failed!\n"))
+		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -73,7 +74,8 @@ func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
 	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls_sub/", "", 1), false)
 	if err != nil {
 		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: The file requested is not exist!"))
+		w.Write([]byte("ERROR 404: The file requested is not exist!\n"))
+		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -97,13 +99,14 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取视频文件信息
-	videoInfo, realTsFileURINoSuffix, err := hls.GetVideoStream(strings.Replace(r.URL.Path, "/video/", "", 1))
+	videoInfo, realMediaLocalPath, err := hls.GetVideoStream(strings.Replace(r.URL.Path, "/video/", "", 1))
 
 	// 打开文件
-	file, err := os.Open(hls.MediaRootPath + realTsFileURINoSuffix + ".ts")
+	file, err := os.Open(realMediaLocalPath)
 	if err != nil {
 		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: The file requested is not exist!"))
+		w.Write([]byte("ERROR 404: The file requested is not exist!\n"))
+		w.Write([]byte(err.Error()))
 		file.Close()
 		return
 	}
@@ -112,7 +115,8 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	fileStat, err := file.Stat()
 	if err != nil {
 		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: The file requested is not exist!"))
+		w.Write([]byte("ERROR 404: The file requested is not exist!\n"))
+		w.Write([]byte(err.Error()))
 		file.Close()
 		return
 	}
@@ -140,7 +144,8 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if err != io.EOF {
 				w.WriteHeader(404)
-				w.Write([]byte("ERROR 404: Unsurported file type!"))
+				w.Write([]byte("ERROR 404: Unsurported file type!\n"))
+				w.Write([]byte(err.Error()))
 			}
 			break
 		}
