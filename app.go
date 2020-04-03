@@ -34,7 +34,7 @@ func main() {
 
 	// 声明路由
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", routers.Welcome)
+	mux.Handle("/", http.FileServer(http.Dir("static")))
 
 	// 获取一级m3u8 http://127.0.0.1:4000/hls/1.m3u8
 	mux.HandleFunc("/hls/", routers.GetMainM3U8)

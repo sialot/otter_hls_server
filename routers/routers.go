@@ -23,12 +23,6 @@ func Init() {
 	Log = logger.Log
 }
 
-// Welcome 欢迎页
-func Welcome(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte("OtterHLSServer!"))
-}
-
 // GetMainM3U8 M3U8文件获取
 func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 
