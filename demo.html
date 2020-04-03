@@ -14,14 +14,23 @@
               var video = document.getElementById('video');
               if (Hls.isSupported()) {
                 var config = {
-                  //debug: true,
+                  debug: true,
                   maxBufferLength: 10,
                   maxMaxBufferLength: 300,
                   maxBufferSize: 10*1000*1000,
-                  maxBufferHole: 0.5
+                  maxBufferHole: 0.5,
+			        	  levelLoadingTimeOut: 7200000,
+	        			  manifestLoadingTimeOut: 7200000,
+	      		      //levelLoadingMaxRetry: 4,
+	        			  //levelLoadingRetryDelay: 1000,
+	      		      //levelLoadingMaxRetryTimeout: 64000,
+	        			  fragLoadingTimeOut: 7200000,
+	        			  //fragLoadingMaxRetry: 6,
+	        			  //fragLoadingRetryDelay: 1000,
+		        		  //fragLoadingMaxRetryTimeout: 64000,
                 };
                 var hls = new Hls(config);
-                hls.loadSource('http://192.168.18.201:4000/hls/t/1.m3u8');
+                hls.loadSource('http://192.168.18.201:4000/hls/t/2.m3u8');
                 hls.attachMedia(video);
               }                
             }
