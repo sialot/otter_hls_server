@@ -103,10 +103,10 @@ func GetVideoStream(videoFileURI string) (*VideoInfo, string, error) {
 	Log.Debug("GetVideoStream, sequenceStr:" + sequenceStr)
 
 	// 组名
-	groupName := videoFileURINoSuffix[0: strings.Index(videoFileURINoSuffix, "/")]
+	groupName := videoFileURINoSuffix[0:strings.Index(videoFileURINoSuffix, "/")]
 
 	// 视频相对路径
-	mediaFileURI := videoFileURINoSuffix[strings.Index(videoFileURINoSuffix, "/") + 1: len(videoFileURINoSuffix)]
+	mediaFileURI := videoFileURINoSuffix[strings.Index(videoFileURINoSuffix, "/")+1 : len(videoFileURINoSuffix)]
 
 	// 真实媒体文件路径
 	realMediaLocalPath = path.MediaFileFolders[groupName].LocalPath + mediaFileURI[0:strings.LastIndex(mediaFileURI, "_")] + ".ts"

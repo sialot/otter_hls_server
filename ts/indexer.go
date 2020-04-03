@@ -587,7 +587,7 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 }
 
 // getIndexFilePath 根据索引文件url计算真正的索引路径
-func getIndexFilePath(baseFileURINoSuffix string) string{
+func getIndexFilePath(baseFileURINoSuffix string) string {
 	Log.Debug("getIndexFilePath start, baseFileURINoSuffix:" + baseFileURINoSuffix)
 	indexFileLocalPath := path.IndexFileFolder + baseFileURINoSuffix + ".tsidx"
 	Log.Debug("getIndexFilePath finish, indexFileLocalPath:" + indexFileLocalPath)
@@ -595,14 +595,14 @@ func getIndexFilePath(baseFileURINoSuffix string) string{
 }
 
 // getMediaFilePathFromIndexFilePath 根据索引文件计算真正的媒体路径
-func getMediaFilePathFromIndexFilePath(indexFileLocalPath string) (string, error){
+func getMediaFilePathFromIndexFilePath(indexFileLocalPath string) (string, error) {
 	Log.Debug("getMediaFilePathFromIndexFilePath start, indexFileLocalPath:" + indexFileLocalPath)
 
 	mediaFileURI := strings.TrimSuffix(strings.Replace(indexFileLocalPath, path.IndexFileFolder, "", 1), ".tsidx") + ".ts"
 
-	groupName := mediaFileURI[0: strings.Index(mediaFileURI, "/")]
+	groupName := mediaFileURI[0:strings.Index(mediaFileURI, "/")]
 
-	fileURI := mediaFileURI[strings.Index(mediaFileURI, "/") + 1: len(mediaFileURI)]
+	fileURI := mediaFileURI[strings.Index(mediaFileURI, "/")+1 : len(mediaFileURI)]
 
 	Log.Debug("groupName:" + groupName + ", fileURI:" + fileURI)
 

@@ -164,7 +164,7 @@ func GetVideoStream(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateIndex 主动创建索引
-func CreateIndex(w http.ResponseWriter, r *http.Request){
+func CreateIndex(w http.ResponseWriter, r *http.Request) {
 
 	var url = r.URL.Path
 	Log.Debug(">>>>>>>>>>> Request url:" + r.URL.Path)

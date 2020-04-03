@@ -2,6 +2,7 @@ package path
 
 import (
 	"strconv"
+
 	config "../config"
 	logger "../log"
 	"github.com/sialot/ezlog"
@@ -10,7 +11,7 @@ import (
 // Folder 媒体本地文件夹爱
 type Folder struct {
 	LocalPath string // 媒体本地文件夹
-	GroupName   string // 映射到url的文件夹
+	GroupName string // 映射到url的文件夹
 }
 
 // Log 系统日志
@@ -38,8 +39,8 @@ func LoadPath() {
 	if err != nil {
 		panic(err.Error())
 	}
-	Log.Info("Load index_file_folder complete! index_file_folder: "+ IndexFileFolder)
-	
+	Log.Info("Load index_file_folder complete! index_file_folder: " + IndexFileFolder)
+
 	Log.Info("Loading media_file_folders")
 
 	count, err := config.SysConfig.Count("path.media_file_folders")
@@ -50,12 +51,12 @@ func LoadPath() {
 	var i int
 	for i = 0; i < count; i++ {
 
-		localPath, err := config.SysConfig.Get("path.media_file_folders[" + strconv.Itoa(i) +"].local_path")
+		localPath, err := config.SysConfig.Get("path.media_file_folders[" + strconv.Itoa(i) + "].local_path")
 		if err != nil {
 			panic(err.Error())
 		}
-		
-		groupName, err := config.SysConfig.Get("path.media_file_folders[" + strconv.Itoa(i) +"].group_name")
+
+		groupName, err := config.SysConfig.Get("path.media_file_folders[" + strconv.Itoa(i) + "].group_name")
 		if err != nil {
 			panic(err.Error())
 		}
