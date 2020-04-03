@@ -407,6 +407,13 @@ func readIndexFile(indexFileLocalPath string) (*MediaFileIndex, error) {
 //	indexFileLocalPath 索引文件本地路径
 func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIndex, error) {
 
+	// 获取索引对应媒体文件路径
+	tsFilePath, err := getMediaFilePathFromIndexFilePath(indexFileLocalPath)
+	if err != nil {
+		Log.Error("Open ts file failed: " + err.Error())
+		return nil, err
+	}
+
 	// 标记当前处理正在被别人抢占
 	var waitProcess bool = false
 
@@ -414,7 +421,7 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 	for {
 
 		// 注册开始处理文件
-		needWait := startProcess(indexFileLocalPath)
+		needWait := startProcess(tsFilePath)
 
 		// 当前处理被抢占
 		if !waitProcess && needWait {
@@ -429,7 +436,7 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 	}
 
 	// 结束处理
-	defer finishProcess(indexFileLocalPath)
+	defer finishProcess(tsFilePath)
 
 	// 轮到我处理，再次尝试读索引
 	if waitProcess {
@@ -454,13 +461,6 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 	indexer.maxTime = -1
 	indexer.frameArray = make([]Frame, 0)
 
-	// 获取索引对应媒体文件路径
-	tsFilePath, err := getMediaFilePathFromIndexFilePath(indexFileLocalPath)
-	if err != nil {
-		Log.Error("Open ts file failed: " + err.Error())
-		return nil, err
-	}
-
 	Log.Debug("Open ts file: " + tsFilePath)
 
 	file, err := os.Open(tsFilePath)
@@ -480,6 +480,7 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 
 	// 预加载ts包字节 切片
 	preLoadData := make([]byte, min(int64(TsPkgSize*TsReloadNum), fileStat.Size()))
+	var curOffset int64 = 0
 
 	// 创建解封装器
 	var d Demuxer
@@ -489,7 +490,7 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 
 	// 取ts文件
 	for {
-		_, err := file.Read(preLoadData)
+		n, err := file.Read(preLoadData)
 
 		// 读取文件失败
 		if err != nil {
@@ -499,6 +500,9 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 			}
 			break
 		}
+
+		curOffset += int64(n)
+		updateProcess(tsFilePath, curOffset, fileStat.Size())
 
 		// 解封装
 		var i int

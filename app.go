@@ -9,8 +9,8 @@ import (
 	config "./config"
 	hls "./hls"
 	logger "./log"
-	routers "./routers"
 	path "./path"
+	routers "./routers"
 	ts "./ts"
 	"github.com/sialot/ezlog"
 )
@@ -47,6 +47,9 @@ func main() {
 
 	// 主动创建ts索引 http://127.0.0.1:4000/createIndex/1.ts
 	mux.HandleFunc("/createIndex/", routers.CreateIndex)
+
+	// 查询索引进度
+	mux.HandleFunc("/api/get_process_info", routers.GetProcessInfo)
 
 	// 启动服务`
 	port, _ := config.SysConfig.Get("server.port")

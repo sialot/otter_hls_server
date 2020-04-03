@@ -191,6 +191,33 @@ func CreateIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("{\"code\":\"1\",\"msg\":\"\"}"))
 }
 
+// GetProcessInfo 获取索引进度
+func GetProcessInfo(w http.ResponseWriter, r *http.Request) {
+
+	var resultJson string
+
+	resultJson += "{\"code\":\"1\","
+	resultJson += "\"list\":["
+
+	processList := ts.GetProgressInfo()
+
+	for i, info := range processList {
+
+		resultJson += "{"
+		resultJson += "\"filePath\":\"" + info.FilePath + "\","
+		resultJson += "\"fileSize\":\"" + strconv.FormatInt(info.FileSize, 10) + "\","
+		resultJson += "\"progress\":\"" + strconv.Itoa(info.Progress) + "\""
+		resultJson += "}"
+
+		if i < (len(processList) - 1) {
+			resultJson += ","
+		}
+	}
+	resultJson += "]}"
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(resultJson))
+}
+
 func min(x int64, y int64) int64 {
 	if x < y {
 		return x
