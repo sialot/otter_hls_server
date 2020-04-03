@@ -1,6 +1,5 @@
 server:
   port: 4000
-  domainName: 192.168.18.201
 path:
   index_file_folder: /index/
   media_file_folders:
