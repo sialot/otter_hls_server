@@ -1,11 +1,75 @@
 <html>
     <header>
+        <style>
+            body{
+                margin:0 20px;               
+                font-size: 16px;
+                font-family: Helvetica Neue,Helvetica,Arial,Hiragino Sans GB,Hiragino Sans GB W3,Microsoft YaHei UI,Microsoft YaHei,WenQuanYi Micro Hei,sans-serif;
+                color:black;
+            }
+            div{
+                line-height: 22px;
+                vertical-align: middle;
+            }
+            .title{
+                font-weight: bolder;
+                line-height: 30px;
+            }
+            .task{
+                font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji;
+                font-size:14px;
+                color:#1b1b44;
+            }
+            .progress-container span{
+                font-size:8px;
+                margin: 0 5px;
+            }
+            .span-key{
+                width:40px;
+                display: inline-block;
+            }
+            .progress-border{
+                border:1px solid #1b1b44;
+                height:3px;
+                width:400px;
+                display: inline-block;
+            }
+            .progress{
+                margin: 0;
+                background-color: #2a2a85;
+                height: 100%;
+                width: 50%;
+            }
+
+
+        </style>
         <script>
 
         </script>
     </header>
     <body>
-        <h1>Otter hls server</h1>
-        welcome!
+        <div class="title"><span>OTTER_HLS_SERVER</span></div>
+        <div id="no-task">
+            <span>No indexing task is currently being performed.</span>
+        </div>
+        <div>----------------------------------------------------------------------</div>  
+        <div id="task-list">
+            <div class="task">
+                <div>
+                    <span class="span-key">Path:</span>
+                    <span>/var/media/file/1.ts</span>
+                </div>
+                <div>
+                    <sapn class="span-key">Size:</sapn>
+                    <span>7.6GB</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-border">
+                        <div class="progress"></div>
+                    </div>
+                    <span>50%</span>
+                </div>
+            </div>
+        </div>
     </body>
 </html>
