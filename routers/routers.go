@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"fmt"
 
 	strings "strings"
 
@@ -199,8 +200,8 @@ func GetProcessInfo(w http.ResponseWriter, r *http.Request) {
 
 		resultJson += "{"
 		resultJson += "\"filePath\":\"" + info.FilePath + "\","
-		resultJson += "\"fileSize\":\"" + strconv.FormatInt(info.FileSize, 10) + "\","
-		resultJson += "\"progress\":\"" + strconv.Itoa(info.Progress) + "\""
+		resultJson += "\"fileSize\":\"" + formatFileSize(info.FileSize) + "\","
+		resultJson += "\"progress\":" + strconv.Itoa(info.Progress)
 		resultJson += "}"
 
 		if i < (len(processList) - 1) {
@@ -211,6 +212,23 @@ func GetProcessInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(resultJson))
 }
+
+// formatFileSize 字节的单位转换 保留两位小数
+func formatFileSize(fileSize int64) (size string) {
+	if fileSize < 1024 {
+	   return fmt.Sprintf("%.2fB", float64(fileSize)/float64(1))
+	} else if fileSize < (1024 * 1024) {
+	   return fmt.Sprintf("%.2fKB", float64(fileSize)/float64(1024))
+	} else if fileSize < (1024 * 1024 * 1024) {
+	   return fmt.Sprintf("%.2fMB", float64(fileSize)/float64(1024*1024))
+	} else if fileSize < (1024 * 1024 * 1024 * 1024) {
+	   return fmt.Sprintf("%.2fGB", float64(fileSize)/float64(1024*1024*1024))
+	} else if fileSize < (1024 * 1024 * 1024 * 1024 * 1024) {
+	   return fmt.Sprintf("%.2fTB", float64(fileSize)/float64(1024*1024*1024*1024))
+	} else {
+	   return fmt.Sprintf("%.2fEB", float64(fileSize)/float64(1024*1024*1024*1024*1024))
+	}
+ }
 
 func min(x int64, y int64) int64 {
 	if x < y {
