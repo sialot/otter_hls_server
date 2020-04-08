@@ -1,75 +1,113 @@
 <html>
     <header>
         <style>
-            body{
-                margin:0 20px;               
-                font-size: 16px;
-                font-family: Helvetica Neue,Helvetica,Arial,Hiragino Sans GB,Hiragino Sans GB W3,Microsoft YaHei UI,Microsoft YaHei,WenQuanYi Micro Hei,sans-serif;
-                color:black;
-            }
-            div{
-                line-height: 22px;
+            #main-container{
+                line-height: 24px;
+                font-size: 14px;
+                font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji;
+                color:#1b1b44;
                 vertical-align: middle;
+            }
+            .sp{
+                line-height: 12px;
             }
             .title{
                 font-weight: bolder;
-                line-height: 30px;
+                font-size: 16px;
             }
             .task{
-                font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji;
-                font-size:14px;
-                color:#1b1b44;
-            }
-            .progress-container span{
-                font-size:8px;
-                margin: 0 5px;
+                font-size: 12px;
+                line-height: 12px;
+                margin-top: 8px;
             }
             .span-key{
-                width:40px;
-                display: inline-block;
-            }
-            .progress-border{
-                border:1px solid #1b1b44;
-                height:3px;
-                width:400px;
+                width:28px;
                 display: inline-block;
             }
             .progress{
                 margin: 0;
-                background-color: #2a2a85;
+                background-color: #6868d6;
                 height: 100%;
-                width: 50%;
+
             }
-
-
+            .progress-border{
+                border:1px solid #6868d6;
+                height:3px;
+                width:350px;
+                display: inline-block;
+            }
+            .progress-num{
+                color:#6868d6;
+            }
         </style>
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
         <script>
-
-        </script>
+            function refreshData(){
+                var ajaxObj = new XMLHttpRequest();
+                ajaxObj.open('get', 'api/get_process_info');
+                ajaxObj.send();
+                ajaxObj.onreadystatechange = function () {
+                    if (ajaxObj.readyState == 4 && ajaxObj.status == 200) {
+                        var result = JSON.parse(ajaxObj.responseText)
+                        if(result.code == '1'){
+    
+                            if(result.list.length > 0){
+                                app.message = "Index task list:"
+                            } else {
+                                app.message = "No indexing task is currently being performed."
+                            }
+    
+                            taskList.list = result.list
+                        }
+                    }
+                }
+            }
+        </script>    
     </header>
     <body>
-        <div class="title"><span>OTTER_HLS_SERVER</span></div>
-        <div id="no-task">
-            <span>No indexing task is currently being performed.</span>
-        </div>
-        <div>----------------------------------------------------------------------</div>  
-        <div id="task-list">
-            <div class="task">
-                <div>
-                    <span class="span-key">Path:</span>
-                    <span>/var/media/file/1.ts</span>
-                </div>
-                <div>
-                    <sapn class="span-key">Size:</sapn>
-                    <span>7.6GB</span>
-                </div>
-                <div class="progress-container">
-                    <div class="progress-border">
-                        <div class="progress"></div>
+        <div id="main-container">
+            <div class="title"><span>OTTER_HLS_SERVER</span></div>
+            <div class="sp">-------------------------------------------------------------------</div> 
+            <div>
+                <span id = "page-msg">{{ message }}</span>
+            </div>
+            <div id="task-list">
+                <div class="task" v-for="taskInfo in list">
+                    <div>
+                        <span class="span-key">Path:</span>
+                        <span>{{taskInfo.filePath}}</span>
                     </div>
-                    <span>50%</span>
+                    <div>
+                        <span class="span-key">Size:</span>
+                        <span>{{taskInfo.fileSize}}</span>
+                    </div>
+                    <div id="progress-container">
+                        <div class="progress-border">
+                            <div class="progress" v-bind:style="{ width: taskInfo.progress + '%' }"></div>
+                        </div>
+                        <span class="progress-num">{{taskInfo.progress}}%</span>
+                    </div>
                 </div>
             </div>
         </div>
     </body>
+    <script>
+        var app = new Vue({
+            el: '#page-msg',
+            data: {
+                message: 'No indexing task is currently being performed.'
+            }
+        })
+
+        var taskList = new Vue({
+            el:"#task-list",
+            data: {
+                list:[
+                ]
+            }
+        })
+        refreshData();
+        setInterval(refreshData, 1000)
+
+    </script>
 </html>
