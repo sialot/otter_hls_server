@@ -45,8 +45,8 @@ func main() {
 	// 获取视频 http://127.0.0.1:4000/video/1_0.ts
 	mux.HandleFunc("/video/", routers.GetVideoStream)
 
-	// 主动创建ts索引 http://127.0.0.1:4000/createIndex/1.ts
-	mux.HandleFunc("/createIndex/", routers.CreateIndex)
+	// 主动创建ts索引 http://127.0.0.1:4000/create_index/1.ts
+	mux.HandleFunc("/api/create_index/", routers.CreateIndex)
 
 	// 查询索引进度
 	mux.HandleFunc("/api/get_process_info", routers.GetProcessInfo)

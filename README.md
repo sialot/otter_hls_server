@@ -158,7 +158,7 @@ http://host:port/video/mediaPath2/demo/1_0.ts
 
 
 
-#### /createIndex/{group_name}/xxx.ts
+#### /api/create_index/{group_name}/xxx.ts
 
 主动创建媒体文件索引
 
@@ -182,7 +182,7 @@ path:
 
 则请求URL为：
 
-http://host:port/createIndex/mediaPath2/demo/1.ts
+http://host:port/api/create_index/mediaPath2/demo/1.ts
 
 成功返回：
 
@@ -196,3 +196,20 @@ http://host:port/createIndex/mediaPath2/demo/1.ts
 {"code":"-1","msg":"errMsg"}
 ```
 
+
+
+#### /api/get_process_info/
+
+查询所有索引任务进度
+
+成功返回：
+
+```json
+{"code":"1","list":[{"filePath":"xxx","fileSize":"1GB","progress":80}]}
+```
+
+失败返回
+
+```json
+{"code":"-1","msg":"errMsg"}
+```
