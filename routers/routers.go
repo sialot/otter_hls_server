@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	strings "strings"
-
+	config "../config"
 	hls "../hls"
 	logger "../log"
 	ts "../ts"
@@ -19,9 +19,18 @@ import (
 // Log 系统日志
 var Log *ezlog.Log
 
+// M3u8Host
+var M3u8Host string
+
 // Init 初始化
 func Init() {
 	Log = logger.Log
+
+	host, err := config.SysConfig.Get("m3u8host")
+	if err != nil {
+		panic(err.Error())
+	}
+	M3u8Host = host
 }
 
 // GetMainM3U8 M3U8文件获取
@@ -39,7 +48,7 @@ func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取m3u8文件
-	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls/", "", 1), r.Host, true)
+	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls/", "", 1), M3u8Host, true)
 	if err != nil {
 		w.WriteHeader(404)
 		w.Write([]byte("ERROR 404: GetM3U8 failed!\n"))
@@ -67,7 +76,7 @@ func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取m3u8文件
-	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls_sub/", "", 1), r.Host, false)
+	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls_sub/", "", 1), M3u8Host, false)
 	if err != nil {
 		w.WriteHeader(404)
 		w.Write([]byte("ERROR 404: The file requested is not exist!\n"))

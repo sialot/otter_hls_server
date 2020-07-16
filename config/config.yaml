@@ -1,5 +1,6 @@
 server:
   port: 4000
+m3u8host: 10.0.9.90:4000
 path:
   index_file_folder: /index/
   media_file_folders:
