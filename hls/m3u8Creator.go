@@ -7,6 +7,7 @@ import (
 
 	config "../config"
 	logger "../log"
+	url "net/url"
 	ts "../ts"
 	"github.com/sialot/ezlog"
 )
@@ -77,7 +78,15 @@ func createMainM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix strin
 
 	// ./hls_sub/video_index.M3U8
 	// 作为二级m3u8文件"
-	resultStr += "http://" + host + "/hls_sub/" + baseFileURINoSuffix + ".m3u8"
+
+	// 组名
+	groupName := baseFileURINoSuffix[0:strings.Index(baseFileURINoSuffix, "/")]
+
+	// 视频相对路径
+	mediaFileURI := baseFileURINoSuffix[strings.Index(baseFileURINoSuffix, "/")+1 : len(baseFileURINoSuffix)]
+
+	var escapeUrl string = "http://" + host + "/hls_sub/" + groupName + "/" + url.QueryEscape(mediaFileURI + ".m3u8")
+	resultStr += escapeUrl
 
 	Log.Debug("<<<GetMainM3u8 End, Result: \n" + resultStr)
 	return resultStr
@@ -126,7 +135,15 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix string
 		// ./video/video_index.M3U8
 		// 作为二级m3u8文件"
 		sequenceStr := strconv.FormatUint(uint64(videoList[i].Sequence), 10)
-		resultStr += "http://" + host + "/video/" + baseFileURINoSuffix + "_" + sequenceStr + ".ts\n"
+
+		// 组名
+		groupName := baseFileURINoSuffix[0:strings.Index(baseFileURINoSuffix, "/")]
+
+		// 视频相对路径
+		mediaFileURI := baseFileURINoSuffix[strings.Index(baseFileURINoSuffix, "/")+1 : len(baseFileURINoSuffix)]
+
+		var escapeUrl string = "http://" + host + "/video/" + groupName + "/" + url.QueryEscape(mediaFileURI + "_" + sequenceStr + ".ts") + "\n"
+		resultStr += escapeUrl
 	}
 
 	// #EXT-X-ENDLIST

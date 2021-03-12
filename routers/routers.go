@@ -33,36 +33,8 @@ func Init() {
 	M3u8Host = host
 }
 
-// GetMainM3U8 M3U8文件获取
-func GetMainM3U8(w http.ResponseWriter, r *http.Request) {
-
-	var url = r.URL.Path
-	Log.Debug(">>>>>>>>>>> Request url:" + url)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	// 非m3u8请求，返回404
-	if !(strings.HasSuffix(url, ".m3u8") || strings.HasSuffix(url, ".M3U8")) {
-		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: Unsurported file type!"))
-		return
-	}
-
-	// 获取m3u8文件
-	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls/", "", 1), M3u8Host, true)
-	if err != nil {
-		w.WriteHeader(404)
-		w.Write([]byte("ERROR 404: GetM3U8 failed!\n"))
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	// 返回m3u8文件内容
-	w.Header().Set("Content-Type", "application/x-mpegURL")
-	w.Write([]byte(m3u8))
-}
-
-// GetSubM3U8 M3U8文件获取
-func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
+// GetM3U8 M3U8文件获取
+func GetM3U8(w http.ResponseWriter, r *http.Request) {
 
 	var url = r.URL.Path
 	Log.Debug(">>>>>>>>>>> Request url:" + url)
@@ -76,7 +48,7 @@ func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取m3u8文件
-	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls_sub/", "", 1), M3u8Host, false)
+	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls/", "", 1), M3u8Host, false)
 	if err != nil {
 		w.WriteHeader(404)
 		w.Write([]byte("ERROR 404: The file requested is not exist!\n"))
@@ -85,7 +57,7 @@ func GetSubM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 返回m3u8文件内容
-	w.Header().Set("Content-Type", "application/x-mpegURL")
+	w.Header().Set("Content-Type", "application/x-mpegURL;charset=UTF-8")
 	w.Write([]byte(m3u8))
 }
 
