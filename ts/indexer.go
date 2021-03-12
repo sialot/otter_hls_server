@@ -532,6 +532,13 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 	var mediaFileIndex MediaFileIndex
 	mediaFileIndex.VideoSize = common.GetFileSize(tsFilePath)
 	mediaFileIndex.Duration = uint32(indexer.maxTime-indexer.minTime) / 1000
+
+	// 预防时长为 0 
+	if mediaFileIndex.Duration == 0 {
+		err := errors.NewError(errors.ErrorCodeGetIndexFailed, "integer divide by zero.")
+		return nil, err
+	}
+
 	mediaFileIndex.BindWidth = uint32(mediaFileIndex.VideoSize / uint64(mediaFileIndex.Duration))
 	mediaFileIndex.TimesArray = make([]TimeSlice, 0)
 
