@@ -143,7 +143,9 @@ func createSubM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix string
 		mediaFileURI := baseFileURINoSuffix[strings.Index(baseFileURINoSuffix, "/")+1 : len(baseFileURINoSuffix)]
 
 		var escapeUrl string = "http://" + host + "/video/" + groupName + "/" + url.QueryEscape(mediaFileURI + "_" + sequenceStr + ".ts") + "\n"
-		resultStr += escapeUrl
+
+		// 防止encodeURL导致 空格变 + 
+		resultStr += strings.Replace(escapeUrl, "+", "%20", -1)
 	}
 
 	// #EXT-X-ENDLIST
