@@ -37,10 +37,7 @@ func main() {
 	mux.Handle("/", http.FileServer(http.Dir("static")))
 
 	// 获取一级m3u8 http://127.0.0.1:4000/hls/1.m3u8
-	mux.HandleFunc("/hls/", routers.GetMainM3U8)
-
-	// 获取二级m3u8 http://127.0.0.1:4000/hls_sub/1.m3u8
-	mux.HandleFunc("/hls_sub/", routers.GetSubM3U8)
+	mux.HandleFunc("/hls/", routers.GetM3U8)
 
 	// 获取视频 http://127.0.0.1:4000/video/1_0.ts
 	mux.HandleFunc("/video/", routers.GetVideoStream)
