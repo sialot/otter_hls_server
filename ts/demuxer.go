@@ -394,8 +394,8 @@ func (d *Demuxer) readpat(payload []byte, pHeader *header) error {
 		d.globalpat.pLoopData = loopDataBuffer
 		d.globalpat.programs = programs
 
-		// 获取第一个节目作为解析目标，只解析第一个节目
-		d.curProgramPID = int(d.globalpat.programs[0].PID)
+		// 获取第一个节目作为解析目标，只解析最后一个节目
+		d.curProgramPID = int(d.globalpat.programs[len(d.globalpat.programs) - 1].PID)
 
 		Log.Debug("识别到pat表，PID：" + fmt.Sprint(pHeader.PID))
 		Log.Debug("识别到当前Program，PID:" + fmt.Sprint(d.curProgramPID))
