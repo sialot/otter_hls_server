@@ -128,7 +128,6 @@ type Demuxer struct {
 	globalpmt     pmt               // 全局pmt表
 	bufferMap     map[uint16][]byte // 全局ts buffer临时存储，key PID,值 byte数据切片
 	curPesLen     int               // 当前pes结束长度
-	curProgramPID int
 	curVideoPID   int
 	curAudioPID   int
 	curOffset     uint64
@@ -138,7 +137,6 @@ type Demuxer struct {
 func (d *Demuxer) Init() {
 	d.bufferMap = make(map[uint16][]byte)
 	d.curPesLen = -1
-	d.curProgramPID = -1
 	d.curVideoPID = -1
 	d.curAudioPID = -1
 	d.curOffset = 0
@@ -248,33 +246,45 @@ func (d *Demuxer) readPayload(pKgBuf []byte, pHeader *header) (*Pes, error) {
 		//  ...
 	}
 
-	// 看是否为pmt信息
-	if d.curProgramPID == int(pHeader.PID) {
+	// 仍然未找到有效的视频流
+	if(d.curVideoPID == -1){
 
-		// 对于PSI,payloadUnitStartIndicator 为1时
-		// 有效载荷开始的位置应再偏移 1 个字节,pointer_field。
-		if pHeader.payloadUnitStartIndicator == 0x01 {
-			start = start + 1
+		// 同时解析每一个program，存在有效的pmt表后，第一个program会更新curVideoPID，后续program将被忽略
+		var i int
+		for i = 0; i < len(d.globalpat.programs); i ++ {
+
+			// 看是否为pmt信息
+			if d.globalpat.programs[i].PID == pHeader.PID {
+
+				// 对于PSI,payloadUnitStartIndicator 为1时
+				// 有效载荷开始的位置应再偏移 1 个字节,pointer_field。
+				if pHeader.payloadUnitStartIndicator == 0x01 {
+					start = start + 1
+				}
+				err := d.readpmt(pKgBuf[start:len(pKgBuf)], pHeader)
+
+				if err != nil {
+					return nil, err
+				}
+			}
+
 		}
-		err := d.readpmt(pKgBuf[start:len(pKgBuf)], pHeader)
 
-		if err != nil {
-			return nil, err
-		}
-	}
+	} else {
 
-	// 切片只需要视频信息
-	if int(pHeader.PID) == d.curVideoPID {
+		// 切片只需要视频信息
+		if int(pHeader.PID) == d.curVideoPID {
 
-		// 解析PES数据
-		pesResult, err := d.readPesPayload(pKgBuf[start:len(pKgBuf)], pHeader)
+			// 解析PES数据
+			pesResult, err := d.readPesPayload(pKgBuf[start:len(pKgBuf)], pHeader)
 
-		if err != nil {
-			return nil, err
-		}
+			if err != nil {
+				return nil, err
+			}
 
-		if pesResult != nil {
-			return pesResult, nil
+			if pesResult != nil {
+				return pesResult, nil
+			}
 		}
 	}
 
@@ -394,11 +404,7 @@ func (d *Demuxer) readpat(payload []byte, pHeader *header) error {
 		d.globalpat.pLoopData = loopDataBuffer
 		d.globalpat.programs = programs
 
-		// 获取第一个节目作为解析目标，只解析最后一个节目
-		d.curProgramPID = int(d.globalpat.programs[len(d.globalpat.programs) - 1].PID)
-
 		Log.Debug("识别到pat表，PID：" + fmt.Sprint(pHeader.PID))
-		Log.Debug("识别到当前Program，PID:" + fmt.Sprint(d.curProgramPID))
 		Log.Debug(fmt.Sprint(d.globalpat))
 	}
 
