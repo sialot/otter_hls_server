@@ -40,7 +40,7 @@ func Init() {
 }
 
 // GetM3U8 M3U8文件获取
-func GetM3U8(m3u8FileURI string, host string, mainFlag bool) (string, error) {
+func GetM3U8(m3u8FileURI string, host string) (string, error) {
 
 	// 无后缀的基本文件路径
 	var baseFileURINoSuffix = strings.TrimSuffix(strings.TrimSuffix(m3u8FileURI, ".m3u8"), ".M3U8")
@@ -52,44 +52,7 @@ func GetM3U8(m3u8FileURI string, host string, mainFlag bool) (string, error) {
 		Log.Error(err.Error())
 		return "", err
 	}
-	if !mainFlag {
-		return createSubM3u8(mediaFileIndex, baseFileURINoSuffix, host), nil
-	}
-	return createMainM3u8(mediaFileIndex, baseFileURINoSuffix, host), nil
-}
-
-// createMainM3u8 创建一级m3u8
-//
-// #EXTM3U
-// #EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=500000
-func createMainM3u8(mediaFileIndex *ts.MediaFileIndex, baseFileURINoSuffix string, host string) string {
-
-	Log.Debug(">>> GetMainM3u8 Start: " + baseFileURINoSuffix + ".m3u8")
-
-	// m3u8 文件内容
-	var resultStr = ""
-
-	// #EXTM3U
-	resultStr += "#EXTM3U\n"
-
-	// #EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=500000
-	bindWidth := strconv.FormatUint(uint64(mediaFileIndex.BindWidth), 10)
-	resultStr += "#EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=" + bindWidth + "\n"
-
-	// ./hls_sub/video_index.M3U8
-	// 作为二级m3u8文件"
-
-	// 组名
-	groupName := baseFileURINoSuffix[0:strings.Index(baseFileURINoSuffix, "/")]
-
-	// 视频相对路径
-	mediaFileURI := baseFileURINoSuffix[strings.Index(baseFileURINoSuffix, "/")+1 : len(baseFileURINoSuffix)]
-
-	var escapeUrl string = "http://" + host + "/hls_sub/" + groupName + "/" + url.QueryEscape(mediaFileURI + ".m3u8")
-	resultStr += escapeUrl
-
-	Log.Debug("<<<GetMainM3u8 End, Result: \n" + resultStr)
-	return resultStr
+	return createSubM3u8(mediaFileIndex, baseFileURINoSuffix, host), nil
 }
 
 // createMainM3u8 创建二级m3u8

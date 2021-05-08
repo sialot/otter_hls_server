@@ -524,7 +524,6 @@ func (indexer *Indexer) createIndexFile(indexFileLocalPath string) (*MediaFileIn
 			if pes != nil {
 				indexer.feedFrame(pes.PTS, pes.PkgOffset)
 			}
-
 		}
 	}
 

@@ -48,7 +48,7 @@ func GetM3U8(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取m3u8文件
-	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls/", "", 1), M3u8Host, false)
+	m3u8, err := hls.GetM3U8(strings.Replace(r.URL.Path, "/hls/", "", 1), M3u8Host)
 	if err != nil {
 		w.WriteHeader(404)
 		w.Write([]byte("ERROR 404: The file requested is not exist!\n"))
